@@ -1,0 +1,196 @@
+<!DOCTYPE html><html lang="en" style="width: 390px; height: 884px; overflow: hidden; position: relative;"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Main Camera Translation Screen - SignBridge</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;700&amp;family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-primary": "#ffffff",
+                        "primary-fixed": "#dae2ff",
+                        "primary-container": "#0052cc",
+                        "tertiary-container": "#006844",
+                        "on-primary-fixed": "#001848",
+                        "surface-container-lowest": "#ffffff",
+                        "on-tertiary-fixed-variant": "#005235",
+                        "on-surface": "#041b3c",
+                        "error": "#ba1a1a",
+                        "secondary": "#825500",
+                        "tertiary-fixed": "#82f9be",
+                        "secondary-fixed": "#ffddb3",
+                        "surface-container": "#e8edff",
+                        "surface-tint": "#0c56d0",
+                        "primary-fixed-dim": "#b2c5ff",
+                        "on-tertiary": "#ffffff",
+                        "on-primary-container": "#c4d2ff",
+                        "on-error-container": "#93000a",
+                        "primary": "#003d9b",
+                        "surface-container-high": "#e0e8ff",
+                        "surface-container-highest": "#d7e2ff",
+                        "on-tertiary-container": "#72e9af",
+                        "inverse-surface": "#1d3052",
+                        "on-secondary": "#ffffff",
+                        "tertiary-fixed-dim": "#65dca4",
+                        "surface-bright": "#f9f9ff",
+                        "surface-container-low": "#f1f3ff",
+                        "on-tertiary-fixed": "#002113",
+                        "on-background": "#041b3c",
+                        "on-secondary-fixed": "#291800",
+                        "on-secondary-container": "#684300",
+                        "inverse-primary": "#b2c5ff",
+                        "outline-variant": "#c3c6d6",
+                        "inverse-on-surface": "#edf0ff",
+                        "outline": "#737685",
+                        "background": "#f9f9ff",
+                        "secondary-container": "#feaa00",
+                        "on-surface-variant": "#434654",
+                        "secondary-fixed-dim": "#ffb950",
+                        "tertiary": "#004e32",
+                        "error-container": "#ffdad6",
+                        "surface-variant": "#d7e2ff",
+                        "surface-dim": "#cadaff",
+                        "surface": "#f9f9ff",
+                        "on-secondary-fixed-variant": "#624000",
+                        "on-error": "#ffffff",
+                        "on-primary-fixed-variant": "#0040a2"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "stack-md": "24px",
+                        "margin-mobile": "20px",
+                        "stack-sm": "12px",
+                        "gutter": "16px",
+                        "touch-target-min": "48px",
+                        "base": "8px"
+                    },
+                    "fontFamily": {
+                        "headline-md": ["Inter", "sans-serif"],
+                        "label-caps": ["Atkinson Hyperlegible Next", "sans-serif"],
+                        "body-md": ["Inter", "sans-serif"],
+                        "headline-sm": ["Inter", "sans-serif"],
+                        "display-lg": ["Inter", "sans-serif"],
+                        "body-lg": ["Inter", "sans-serif"],
+                        "caption": ["Inter", "sans-serif"]
+                    },
+                    "fontSize": {
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "label-caps": ["14px", { "lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "700" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "headline-sm": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "display-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "caption": ["12px", { "lineHeight": "16px", "fontWeight": "500" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined[data-weight="fill"] {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        
+        /* Ensure touch targets meet minimum accessible sizes */
+        .min-touch-target {
+            min-height: 48px;
+            min-width: 48px;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-surface text-on-surface h-screen overflow-hidden flex flex-col font-body-md antialiased" style="width: 390px; height: 884px; margin: 0px auto; position: relative;">
+<!-- TopAppBar -->
+<header class="bg-surface dark:bg-surface-dim border-b border-outline-variant w-full top-0 z-50 flex items-center justify-between px-margin-mobile h-14 w-full shrink-0">
+<button aria-label="Profile" class="min-touch-target flex items-center justify-center text-primary dark:text-primary-fixed hover:bg-surface-container-high transition-colors active:scale-95 transition-transform rounded-full w-10 h-10">
+<span class="material-symbols-outlined text-2xl" data-icon="account_circle">account_circle</span>
+</button>
+<div class="font-headline-md text-headline-md font-bold text-primary dark:text-primary-fixed">
+            SignBridge
+        </div>
+<button aria-label="Menu" class="min-touch-target flex items-center justify-center text-primary dark:text-primary-fixed hover:bg-surface-container-high transition-colors active:scale-95 transition-transform rounded-full w-10 h-10"><span class="material-symbols-outlined text-2xl" data-icon="menu">menu</span></button>
+</header>
+<!-- Main Canvas: Camera View & Translation Overlay -->
+<main class="flex-grow relative bg-on-surface">
+<!-- Camera Feed Placeholder (Simulated) -->
+<div class="absolute inset-0 w-full h-full bg-surface-container-low" data-alt="A POV shot from a smartphone camera looking at hands performing American Sign Language. The background is a brightly lit, modern living room with neutral walls, minimalist furniture, and soft daylight filtering through large windows. The lighting is high-key and flattering, emphasizing clarity and approachability." style="background-image: url(&quot;https://lh3.googleusercontent.com/aida-public/AB6AXuAe93eJ_gs3cxKdWk7V3fpMkM7szyavlRvRRXg8b4Pt_OpwY8CQIVUIvWzE2RGyryGAhcCnl93BBEfkviw6f3_Mj_RH83W7c_5UzIQVd3Lp83gYqErzg5l_8QiF1Ujls18o3jZnEZfLpP0Z3NLHsMZ-_M_GiwBtCsOT1iCz2rlYcwyAR-8_du6LKfcbqbTaIsYl7VAa1Xxjb0Sk5t-3tbqS_BwLlUpEOr4MiiZtDmwtDi0pVACcMU8uHVwo1BkcNuyi&quot;); background-size: cover; background-position: center center;">
+<!-- Simulated video feed overlay gradient for better text legibility -->
+<div class="absolute inset-0 bg-gradient-to-t from-[#000000B3] via-transparent to-transparent z-10 pointer-events-none"></div>
+</div>
+<!-- Floating Action Buttons (Right side) -->
+<div class="absolute right-margin-mobile top-margin-mobile flex flex-col gap-stack-sm z-20">
+<button aria-label="Switch Camera" class="min-touch-target bg-surface/80 backdrop-blur-md rounded-full flex items-center justify-center text-on-surface hover:bg-surface-container-highest transition-colors active:scale-95 shadow-md p-3">
+<span class="material-symbols-outlined" data-icon="cameraswitch">cameraswitch</span>
+</button>
+
+</div>
+<!-- Translation Overlay (Bottom Area) -->
+<div class="absolute bottom-[100px] left-0 right-0 px-margin-mobile z-20 flex flex-col gap-stack-sm pointer-events-none">
+<!-- Real-time transcription block -->
+<div class="bg-surface/90 backdrop-blur-lg rounded-xl p-4 shadow-lg border border-outline-variant pointer-events-auto">
+<div class="flex justify-between items-center mb-2">
+<span class="font-caption text-caption text-primary flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px] animate-pulse" data-icon="fiber_manual_record" data-weight="fill">fiber_manual_record</span>
+                        수화 번역 중...
+                    </span>
+<button aria-label="Clear Text" class="text-on-surface-variant hover:text-error transition-colors p-1 rounded-full hover:bg-surface-container">
+<span class="material-symbols-outlined text-sm" data-icon="backspace">backspace</span>
+</button>
+</div>
+<div class="font-display-lg text-display-lg text-on-surface min-h-[80px] break-words">전화 끊어줘.</div>
+<!-- Contextual Actions based on translation -->
+<div class="flex gap-gutter mt-4">
+<button class="flex-1 min-touch-target bg-primary text-on-primary font-body-md text-body-md font-semibold rounded-lg flex items-center justify-center gap-2 active:scale-95 transition-transform">
+<span class="material-symbols-outlined" data-icon="send">send</span>
+                        명령 실행
+                    </button>
+<button aria-label="Copy Text" class="min-touch-target w-12 bg-surface-container-highest text-on-surface rounded-lg flex items-center justify-center border border-outline-variant hover:bg-surface-variant active:scale-95 transition-transform">
+<span class="material-symbols-outlined" data-icon="content_copy">content_copy</span>
+</button>
+</div>
+</div>
+</div>
+</main>
+<!-- BottomNavBar -->
+<nav class="bg-surface-container-lowest dark:bg-surface-container-low border-t border-outline-variant shadow-md fixed bottom-0 left-0 w-full h-[80px] flex justify-around items-center px-4 pb-2 z-50 rounded-t-xl shrink-0">
+<!-- Active Tab: Translate -->
+<button aria-current="page" class="flex flex-col items-center justify-center bg-primary-container text-on-primary-container rounded-full px-6 py-2 hover:bg-surface-container-high active:scale-90 transition-all duration-200 min-touch-target">
+<span class="material-symbols-outlined mb-1" data-icon="interpreter_mode" data-weight="fill">interpreter_mode</span>
+<span class="font-label-caps text-label-caps">번역</span>
+</button>
+<!-- Inactive Tab: Devices -->
+<button class="flex flex-col items-center justify-center text-on-surface-variant px-4 py-2 hover:bg-surface-container-high active:scale-90 transition-all duration-200 min-touch-target">
+<span class="material-symbols-outlined mb-1" data-icon="home_iot_device">home_iot_device</span>
+<span class="font-label-caps text-label-caps">기기</span>
+</button>
+<!-- Inactive Tab: History -->
+<button class="flex flex-col items-center justify-center text-on-surface-variant px-4 py-2 hover:bg-surface-container-high active:scale-90 transition-all duration-200 min-touch-target">
+<span class="material-symbols-outlined mb-1" data-icon="history">history</span>
+<span class="font-label-caps text-label-caps">기록</span>
+</button>
+<!-- Inactive Tab: Settings -->
+<button class="flex flex-col items-center justify-center text-on-surface-variant px-4 py-2 hover:bg-surface-container-high active:scale-90 transition-all duration-200 min-touch-target">
+<span class="material-symbols-outlined mb-1" data-icon="settings">settings</span>
+<span class="font-label-caps text-label-caps">설정</span>
+</button>
+</nav>
+
+
+</body></html>

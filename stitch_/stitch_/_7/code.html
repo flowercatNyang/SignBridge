@@ -1,0 +1,232 @@
+<!DOCTYPE html><html lang="ko"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>SignBridge - Menu Drawer</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Atkinson+Hyperlegible+Next:wght@400;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-secondary-container": "#684300",
+                      "tertiary": "#004e32",
+                      "on-primary-fixed": "#001848",
+                      "on-secondary-fixed": "#291800",
+                      "inverse-primary": "#b2c5ff",
+                      "on-tertiary-fixed": "#002113",
+                      "surface-variant": "#d7e2ff",
+                      "error-container": "#ffdad6",
+                      "error": "#ba1a1a",
+                      "on-error-container": "#93000a",
+                      "secondary": "#825500",
+                      "primary-container": "#0052cc",
+                      "on-surface": "#041b3c",
+                      "background": "#f9f9ff",
+                      "tertiary-container": "#006844",
+                      "surface-container-high": "#e0e8ff",
+                      "surface-tint": "#0c56d0",
+                      "surface-container": "#e8edff",
+                      "secondary-fixed": "#ffddb3",
+                      "primary-fixed": "#dae2ff",
+                      "outline": "#737685",
+                      "outline-variant": "#c3c6d6",
+                      "on-primary-fixed-variant": "#0040a2",
+                      "on-error": "#ffffff",
+                      "on-tertiary-container": "#72e9af",
+                      "inverse-on-surface": "#edf0ff",
+                      "surface-container-low": "#f1f3ff",
+                      "primary": "#003d9b",
+                      "on-primary": "#ffffff",
+                      "tertiary-fixed": "#82f9be",
+                      "on-primary-container": "#c4d2ff",
+                      "surface-bright": "#f9f9ff",
+                      "on-secondary": "#ffffff",
+                      "secondary-container": "#feaa00",
+                      "surface-container-highest": "#d7e2ff",
+                      "surface-dim": "#cadaff",
+                      "inverse-surface": "#1d3052",
+                      "on-background": "#041b3c",
+                      "secondary-fixed-dim": "#ffb950",
+                      "on-surface-variant": "#434654",
+                      "on-secondary-fixed-variant": "#624000",
+                      "tertiary-fixed-dim": "#65dca4",
+                      "primary-fixed-dim": "#b2c5ff",
+                      "surface": "#f9f9ff",
+                      "surface-container-lowest": "#ffffff",
+                      "on-tertiary-fixed-variant": "#005235",
+                      "on-tertiary": "#ffffff"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "stack-md": "24px",
+                      "touch-target-min": "48px",
+                      "stack-sm": "12px",
+                      "base": "8px",
+                      "gutter": "16px",
+                      "margin-mobile": "20px"
+              },
+              "fontFamily": {
+                      "body-lg": [
+                              "Inter", "sans-serif"
+                      ],
+                      "caption": [
+                              "Inter", "sans-serif"
+                      ],
+                      "body-md": [
+                              "Inter", "sans-serif"
+                      ],
+                      "headline-sm": [
+                              "Inter", "sans-serif"
+                      ],
+                      "display-lg": [
+                              "Inter", "sans-serif"
+                      ],
+                      "label-caps": [
+                              "Atkinson Hyperlegible Next", "sans-serif"
+                      ],
+                      "headline-md": [
+                              "Inter", "sans-serif"
+                      ]
+              },
+              "fontSize": {
+                      "body-lg": [
+                              "18px",
+                              {
+                                      "lineHeight": "28px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "caption": [
+                              "12px",
+                              {
+                                      "lineHeight": "16px",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "body-md": [
+                              "16px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "headline-sm": [
+                              "20px",
+                              {
+                                      "lineHeight": "28px",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "display-lg": [
+                              "32px",
+                              {
+                                      "lineHeight": "40px",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "label-caps": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "letterSpacing": "0.05em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "headline-md": [
+                              "24px",
+                              {
+                                      "lineHeight": "32px",
+                                      "fontWeight": "600"
+                              }
+                      ]
+              }
+            }
+          }
+        }
+      </script>
+<style>
+          .material-symbols-outlined {
+              font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+          }
+      </style>
+</head>
+<body class="bg-surface font-body-md text-on-surface antialiased flex justify-center items-center min-h-screen">
+<!-- Mobile Device Container (390x884) -->
+<div class="relative w-[390px] h-[884px] bg-black overflow-hidden shadow-2xl rounded-[40px] border-[8px] border-surface-variant">
+<!-- Background Screen (Dimmed Translation Camera) -->
+<div class="absolute inset-0 z-0">
+<img alt="Translation Camera Background" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAYFIuUTicAbC6yOYbfxofFbm-cdf7WDAM-Xb4FnCR9hWGFZuW96M5Ttq6M89ZQwSNZMvJytnd1IQtKqcesf7L3b3aVKyhSQYdiNUIw6hflMVdsqch2fYPD3ZYVWgnk_MTOf1dJfSLEOSpnrYON7sm__hFZDuvMNdGWB8PDIqedFyA-WSw7s_iexUbF1GAjsY0CZI7J6KRzHHC-g3wUQl2uREYvyywUUhxr80yBKXuCQ60NEedVrBg">
+</div>
+<!-- Scrim Overlay -->
+<div class="absolute inset-0 bg-black/60 z-10 transition-opacity duration-300"></div>
+<!-- Side Drawer (Sliding in from Right) -->
+<div class="absolute top-0 right-0 h-full w-[300px] bg-surface z-20 shadow-[-12px_0_24px_rgba(0,0,0,0.15)] flex flex-col transform translate-x-0 transition-transform duration-300 ease-in-out">
+<!-- Header Section -->
+<div class="flex items-center justify-between p-margin-mobile border-b border-outline-variant pt-12">
+<div class="flex items-center gap-4">
+<!-- Avatar Placeholder -->
+<div class="w-12 h-12 rounded-full bg-surface-container-high overflow-hidden flex items-center justify-center">
+<img alt="User Avatar" class="w-full h-full object-cover" data-alt="A minimal, softly lit portrait of an abstract avatar silhouette against a pale blue background, representing a user profile placeholder in a modern minimalist UI style. The lighting is soft and flat, emphasizing simple geometric shapes." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBNky-nhW_OoY4TsgcUt3Q7Nw05eJMr2O4XtDl303jR1tg_Ehq4gyIYlfv-VTeJ4BnRfFdeLShGj6G-jeGZDIIwb6LHMw3q3anQiiJLh7pAIk87KaQY3PnGb9q5fTeuncWeQOPN1P3atKdckWY-awkMflAMVFH17SoTyMbNEwVsFxQnmWtEK7fmHocx6nRHzjKM7mEKmnRBbXLTXqcuetQ35Aip8bfs-ihsZW2Ha4biF7BKnJTSug0">
+</div>
+<div>
+<p class="font-headline-sm text-headline-sm text-on-surface">사용자 님</p>
+<p class="font-caption text-caption text-on-surface-variant">example@email.com</p>
+</div>
+</div>
+<!-- Close Button -->
+<button aria-label="Close Menu" class="w-[48px] h-[48px] flex items-center justify-center rounded-full hover:bg-surface-container-high transition-colors text-on-surface-variant">
+<span class="material-symbols-outlined text-[24px]">close</span>
+</button>
+</div>
+<!-- Menu Items -->
+<div class="flex-1 overflow-y-auto py-stack-md px-base">
+<nav class="flex flex-col gap-2">
+<!-- Profile Settings -->
+<a class="flex items-center gap-4 px-4 py-3 min-h-[48px] rounded-lg hover:bg-surface-container transition-colors group" href="#">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary transition-colors">person</span>
+<span class="font-body-lg text-body-lg text-on-surface group-hover:text-primary transition-colors">프로필 설정</span>
+</a>
+<!-- Service Information -->
+<a class="flex items-center gap-4 px-4 py-3 min-h-[48px] rounded-lg hover:bg-surface-container transition-colors group" href="#">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary transition-colors">info</span>
+<span class="font-body-lg text-body-lg text-on-surface group-hover:text-primary transition-colors">서비스 안내</span>
+</a>
+<!-- Announcements -->
+<a class="flex items-center gap-4 px-4 py-3 min-h-[48px] rounded-lg hover:bg-surface-container transition-colors group" href="#">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary transition-colors">campaign</span>
+<span class="font-body-lg text-body-lg text-on-surface group-hover:text-primary transition-colors">공지사항</span>
+</a><a class="flex items-center gap-4 px-4 py-3 min-h-[48px] rounded-lg hover:bg-surface-container transition-colors group" href="#">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary transition-colors">groups</span>
+<span class="font-body-lg text-body-lg text-on-surface group-hover:text-primary transition-colors">커뮤니티</span>
+</a>
+<!-- Support Center -->
+<a class="flex items-center gap-4 px-4 py-3 min-h-[48px] rounded-lg hover:bg-surface-container transition-colors group" href="#">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary transition-colors">support_agent</span>
+<span class="font-body-lg text-body-lg text-on-surface group-hover:text-primary transition-colors">고객센터</span>
+</a>
+</nav>
+</div>
+<!-- Bottom Section (Logout) -->
+<div class="p-margin-mobile border-t border-outline-variant pb-12">
+<a class="flex items-center gap-4 px-4 py-3 min-h-[48px] rounded-lg hover:bg-error-container transition-colors group" href="#">
+<span class="material-symbols-outlined text-error group-hover:text-on-error-container transition-colors">logout</span>
+<span class="font-body-lg text-body-lg text-error group-hover:text-on-error-container transition-colors">로그아웃</span>
+</a>
+</div>
+</div>
+</div>
+
+
+</body></html>

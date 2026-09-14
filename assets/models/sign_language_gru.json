@@ -1,0 +1,13 @@
+{
+  "source_sha256": "1443af090db95e26ad25c7ede3089411349f10b25fed648a5b87bf6a68102b24",
+  "onnx_sha256": "b1175f278009f38492fcffe1218735b66af5782b45e20e76572388fac228f39b",
+  "input_shape": [
+    1,
+    30,
+    150
+  ],
+  "classes": 112,
+  "opset": 17,
+  "validation_cases": 11,
+  "max_absolute_logit_error": 2.86102294921875e-06
+}

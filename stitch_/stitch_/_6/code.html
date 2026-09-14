@@ -1,0 +1,269 @@
+<!DOCTYPE html><html class="light" lang="ko" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport">
+<title>기능 및 동작 안내 - SignBridge</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "on-tertiary": "#ffffff",
+                        "inverse-surface": "#1d3052",
+                        "surface-tint": "#0c56d0",
+                        "on-primary-fixed": "#001848",
+                        "on-tertiary-fixed-variant": "#005235",
+                        "on-surface": "#041b3c",
+                        "on-error-container": "#93000a",
+                        "primary-fixed": "#dae2ff",
+                        "secondary-container": "#feaa00",
+                        "surface-bright": "#f9f9ff",
+                        "tertiary-fixed-dim": "#65dca4",
+                        "on-surface-variant": "#434654",
+                        "on-tertiary-container": "#72e9af",
+                        "surface-container-low": "#f1f3ff",
+                        "inverse-on-surface": "#edf0ff",
+                        "background": "#f9f9ff",
+                        "surface-variant": "#d7e2ff",
+                        "tertiary-fixed": "#82f9be",
+                        "tertiary": "#004e32",
+                        "outline": "#737685",
+                        "surface-container": "#e8edff",
+                        "error-container": "#ffdad6",
+                        "surface": "#f9f9ff",
+                        "tertiary-container": "#006844",
+                        "on-primary-container": "#c4d2ff",
+                        "primary": "#003d9b",
+                        "inverse-primary": "#b2c5ff",
+                        "surface-container-high": "#e0e8ff",
+                        "on-primary": "#ffffff",
+                        "outline-variant": "#c3c6d6",
+                        "secondary": "#825500",
+                        "primary-container": "#0052cc",
+                        "on-primary-fixed-variant": "#0040a2",
+                        "on-secondary": "#ffffff",
+                        "on-error": "#ffffff",
+                        "on-secondary-container": "#684300",
+                        "error": "#ba1a1a",
+                        "on-tertiary-fixed": "#002113",
+                        "on-secondary-fixed-variant": "#624000",
+                        "primary-fixed-dim": "#b2c5ff",
+                        "secondary-fixed-dim": "#ffb950",
+                        "surface-container-lowest": "#ffffff",
+                        "secondary-fixed": "#ffddb3",
+                        "on-background": "#041b3c",
+                        "surface-dim": "#cadaff",
+                        "on-secondary-fixed": "#291800",
+                        "surface-container-highest": "#d7e2ff"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    spacing: {
+                        "stack-md": "24px",
+                        "gutter": "16px",
+                        "stack-sm": "12px",
+                        "margin-mobile": "20px",
+                        "base": "8px",
+                        "touch-target-min": "48px"
+                    },
+                    fontFamily: {
+                        "body-md": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "caption": ["Inter"],
+                        "label-caps": ["Atkinson Hyperlegible Next"],
+                        "headline-sm": ["Inter"],
+                        "body-lg": ["Inter"]
+                    },
+                    fontSize: {
+                        "body-md": ["16px", { lineHeight: "24px", fontWeight: "400" }],
+                        "headline-md": ["24px", { lineHeight: "32px", fontWeight: "600" }],
+                        "display-lg": ["32px", { lineHeight: "40px", letterSpacing: "-0.02em", fontWeight: "700" }],
+                        "caption": ["12px", { lineHeight: "16px", fontWeight: "500" }],
+                        "label-caps": ["14px", { lineHeight: "20px", letterSpacing: "0.05em", fontWeight: "700" }],
+                        "headline-sm": ["20px", { lineHeight: "28px", fontWeight: "600" }],
+                        "headline-sm-mobile": ["18px", { lineHeight: "24px", fontWeight: "600" }],
+                        "body-lg": ["18px", { lineHeight: "28px", fontWeight: "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:ital,wght@0,200..800;1,200..800&amp;family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<style>
+        body {
+            width: 390px;
+            height: 884px;
+            margin: 0 auto;
+            overflow: hidden; /* Manage scrolling inside the canvas */
+            position: relative;
+            background-color: #f3f4f6; /* Device bezel color context */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .app-container {
+            width: 100%;
+            height: 100%;
+            background-color: #f9f9ff; /* bg-background */
+            overflow-y: auto;
+            overflow-x: hidden;
+            position: relative;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
+        .app-container::-webkit-scrollbar {
+            display: none; /* Chrome, Safari and Opera */
+        }
+        
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined.fill {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        }
+    </style>
+</head>
+<body class="antialiased text-on-surface">
+<div class="app-container pb-32 pt-20"> <!-- Padding for top/bottom nav -->
+<!-- TopAppBar -->
+<header class="fixed top-0 left-0 w-[390px] z-50 bg-surface-bright dark:bg-inverse-surface shadow-sm dark:shadow-none">
+<div class="flex items-center justify-between px-margin-mobile h-touch-target-min w-full">
+<button aria-label="Menu" class="w-12 h-12 flex items-center justify-center text-primary dark:text-inverse-primary hover:bg-surface-container-high transition-colors active:scale-95 transition-transform rounded-full">
+<span class="material-symbols-outlined text-2xl">menu</span>
+</button>
+<div class="font-headline-md text-headline-md text-primary dark:text-primary-fixed-dim">SignBridge</div>
+<button aria-label="Account" class="w-12 h-12 flex items-center justify-center text-primary dark:text-inverse-primary hover:bg-surface-container-high transition-colors active:scale-95 transition-transform rounded-full">
+<span class="material-symbols-outlined text-2xl">account_circle</span>
+</button>
+</div>
+</header>
+<!-- Main Canvas -->
+<main class="px-margin-mobile flex flex-col gap-stack-md pt-4">
+<!-- Title Section -->
+<section class="flex flex-col gap-base">
+<h1 class="font-display-lg text-display-lg text-on-surface">동작 가이드</h1>
+<p class="font-body-md text-body-md text-on-surface-variant">자주 사용하는 수화 동작과 기능을 확인하세요.</p>
+</section>
+<!-- Gesture List (Bento-style list) -->
+<section class="flex flex-col gap-gutter">
+<!-- Gesture 1 -->
+<article class="glass-card rounded-xl p-gutter flex items-center gap-gutter active:scale-[0.98] transition-transform cursor-pointer relative overflow-hidden group">
+<div class="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+<div class="w-20 h-20 rounded-lg bg-surface-container-highest flex-shrink-0 flex items-center justify-center overflow-hidden border border-outline-variant">
+<img class="w-full h-full object-cover" data-alt="A clean, minimalist 3D rendering of two hands with index fingers touching each other. The hands have a soft, matte white finish. The background is a bright, airy light-mode UI color #f9f9ff with subtle diffused lighting to highlight the gesture. High contrast, professional accessibility aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCusAAUKcL_1AsSWw78jj9hX8QtUkQFi6-ZqYdgRbje7gZwo7tbBKBdOqYtxKJ2PLTc2No-KVwUX_CwbkwXTAY9Oe0F5_qSAWI8ijzfuukXIaiajMhScEIZiI1TPHUqYdQe42zeQfta6Jv9RwXbyVQjO4eBegQ-oIE6VCp9bl2wZ23t_pi5KKYVg4xBfX6GJ6YCPuxnwFzpZjENtEfd8FFjpmVy7ybo3tNxZH4TwskGVfIMWNJs-LQ">
+</div>
+<div class="flex flex-col flex-grow justify-center gap-1">
+<span class="font-caption text-caption text-primary uppercase tracking-wider font-semibold">동작</span>
+<h2 class="font-headline-sm text-headline-sm-mobile text-on-surface">두 손가락을 맞대기</h2>
+<div class="flex items-center gap-2 mt-1">
+<span class="material-symbols-outlined text-outline text-sm">call_end</span>
+<span class="font-body-md text-body-md text-on-surface-variant">번역 시작</span>
+</div>
+</div>
+<button class="w-8 h-8 flex items-center justify-center rounded-full text-outline-variant group-hover:text-primary group-hover:bg-primary/10 transition-colors">
+<span class="material-symbols-outlined text-xl">chevron_right</span>
+</button>
+</article>
+<!-- Gesture 2 -->
+<article class="glass-card rounded-xl p-gutter flex items-center gap-gutter active:scale-[0.98] transition-transform cursor-pointer relative overflow-hidden group">
+<div class="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+<div class="w-20 h-20 rounded-lg bg-surface-container-highest flex-shrink-0 flex items-center justify-center overflow-hidden border border-outline-variant">
+<img class="w-full h-full object-cover" data-alt="A clean, minimalist 3D rendering of a hand forming a fist and raising upwards. The hand has a soft, matte white finish. The background is a bright, airy light-mode UI color #f9f9ff with subtle diffused lighting to highlight the gesture. High contrast, professional accessibility aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDrZkygQCrDB61vka_iEOj5I539y7JLv0nCSngP78OkO2HBzH8N-Cb11sGB4-jd853yMzObiYMhyZr4UZKSUmo2QwEBRfApF4jhZP-MaAN0b3GH7Rkot9sW04GbUIap7bMwJ0o5DMNS3GVt984cJBM2XDn9GmjSNMZ-rFXnVV-6IkS18y8-s6BEGC1fwlxgtegNsGJknsD16uXC4Dj2QxLSy6BTy43GTieigM-VXWyoe_CHlwVEFEE">
+</div>
+<div class="flex flex-col flex-grow justify-center gap-1">
+<span class="font-caption text-caption text-primary uppercase tracking-wider font-semibold">동작</span>
+<h2 class="font-headline-sm text-headline-sm-mobile text-on-surface">주먹 쥐고 올리기</h2>
+<div class="flex items-center gap-2 mt-1">
+<span class="material-symbols-outlined text-outline text-sm">lightbulb</span>
+<span class="font-body-md text-body-md text-on-surface-variant">그만하기</span>
+</div>
+</div>
+<button class="w-8 h-8 flex items-center justify-center rounded-full text-outline-variant group-hover:text-primary group-hover:bg-primary/10 transition-colors">
+<span class="material-symbols-outlined text-xl">chevron_right</span>
+</button>
+</article>
+<!-- Gesture 3 -->
+<article class="glass-card rounded-xl p-gutter flex items-center gap-gutter active:scale-[0.98] transition-transform cursor-pointer relative overflow-hidden group">
+<div class="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+<div class="w-20 h-20 rounded-lg bg-surface-container-highest flex-shrink-0 flex items-center justify-center overflow-hidden border border-outline-variant">
+<img class="w-full h-full object-cover" data-alt="A clean, minimalist 3D rendering of a hand with the palm facing forward, pushing outward in a stop motion. The hand has a soft, matte white finish. The background is a bright, airy light-mode UI color #f9f9ff with subtle diffused lighting to highlight the gesture. High contrast, professional accessibility aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDYK3Gzze6QULRikl3SkjN7lOiWIXfUDbFDk_fFQl36IHyltgUuT8VIwni9JGbie-myyfrPbP1Y8yj0AGiANYOsPLVbnB-ar5o01d1sqT_CTSKfuKyZMBy2ubufzzyyjWUCVfMcCBgiKTaniR3cseIoOaiVQlMJ5utBsIOz9PDXSCWqsHLvdBWxOgkJiy8X4UP1mY3wjE695gebVjNlSlCiARsxL9DSak-7_PODub4o2sw1_IE6mH8">
+</div>
+<div class="flex flex-col flex-grow justify-center gap-1">
+<span class="font-caption text-caption text-primary uppercase tracking-wider font-semibold">동작</span>
+<h2 class="font-headline-sm text-headline-sm-mobile text-on-surface">손바닥을 앞으로 밀기</h2>
+<div class="flex items-center gap-2 mt-1">
+<span class="material-symbols-outlined text-outline text-sm">ac_unit</span>
+<span class="font-body-md text-body-md text-on-surface-variant">명령 실행</span>
+</div>
+</div>
+<button class="w-8 h-8 flex items-center justify-center rounded-full text-outline-variant group-hover:text-primary group-hover:bg-primary/10 transition-colors">
+<span class="material-symbols-outlined text-xl">chevron_right</span>
+</button>
+</article>
+<!-- Gesture 4 -->
+<article class="glass-card rounded-xl p-gutter flex items-center gap-gutter active:scale-[0.98] transition-transform cursor-pointer relative overflow-hidden group">
+<div class="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+<div class="w-20 h-20 rounded-lg bg-surface-container-highest flex-shrink-0 flex items-center justify-center overflow-hidden border border-outline-variant">
+<img class="w-full h-full object-cover" data-alt="A clean, minimalist 3D rendering of two hands spreading apart horizontally. The hands have a soft, matte white finish. The background is a bright, airy light-mode UI color #f9f9ff with subtle diffused lighting to highlight the gesture. High contrast, professional accessibility aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDldWqH3RBR2sChLYFEAnIBW9k2go4tIf8GAs8G5xth6upbiuVZ-cHfOfrrXeI9X2Ld3NdgGwFb2rFQl4ZkEwpk7xItLibFQTsz2senNVXPfNGXbD2e8zZE80w29C40XADQQSFiemSwBsoSecjkUhPPqM5DSmmeV0tiaGyGxZHPswkpvOPyoWbrTe0cUFTNainCzEEoMXSCjytCLulQxUVq4l3y6pfG3q1E9Cy4q31wxiQ7_69rZcg">
+</div>
+<div class="flex flex-col flex-grow justify-center gap-1">
+<span class="font-caption text-caption text-primary uppercase tracking-wider font-semibold">동작</span>
+<h2 class="font-headline-sm text-headline-sm-mobile text-on-surface">양손을 벌리기</h2>
+<div class="flex items-center gap-2 mt-1">
+<span class="material-symbols-outlined text-outline text-sm">tv</span>
+<span class="font-body-md text-body-md text-on-surface-variant">다시 하기</span>
+</div>
+</div>
+<button class="w-8 h-8 flex items-center justify-center rounded-full text-outline-variant group-hover:text-primary group-hover:bg-primary/10 transition-colors">
+<span class="material-symbols-outlined text-xl">chevron_right</span>
+</button>
+</article>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-[390px] z-50 bg-surface-container dark:bg-surface-container-lowest shadow-lg rounded-t-xl pb-safe">
+<div class="flex justify-around items-center h-20 w-full px-base">
+<!-- Translation Tab (Inactive) -->
+<button aria-label="Translation" class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline-variant px-spacing-gutter py-1 hover:bg-surface-variant transition-all active:scale-90 duration-200 rounded-lg">
+<span class="material-symbols-outlined mb-1">interpreter_mode</span>
+<span class="font-label-caps text-label-caps text-[10px]">Translation</span>
+</button>
+<!-- Devices Tab (Inactive) -->
+<button aria-label="Devices" class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline-variant px-spacing-gutter py-1 hover:bg-surface-variant transition-all active:scale-90 duration-200 rounded-lg">
+<span class="material-symbols-outlined mb-1">stream_apps</span>
+<span class="font-label-caps text-label-caps text-[10px]">Devices</span>
+</button>
+<!-- History Tab (Inactive) -->
+<button aria-label="History" class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline-variant px-spacing-gutter py-1 hover:bg-surface-variant transition-all active:scale-90 duration-200 rounded-lg">
+<span class="material-symbols-outlined mb-1">history</span>
+<span class="font-label-caps text-label-caps text-[10px]">History</span>
+</button>
+<!-- Settings Tab (Active) -->
+<button aria-current="page" aria-label="Settings" class="flex flex-col items-center justify-center bg-primary-container dark:bg-primary text-on-primary-container dark:text-on-primary rounded-full px-4 py-1 hover:bg-surface-variant transition-all active:scale-90 duration-200">
+<span class="material-symbols-outlined fill mb-1">settings</span>
+<span class="font-label-caps text-label-caps text-[10px]">Settings</span>
+</button>
+</div>
+</nav>
+</div>
+
+
+
+
+</body></html>
