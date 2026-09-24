@@ -60,6 +60,7 @@ flutter:
     - assets/hand_landmarker.task
     - assets/pose_landmarker_lite.task
     - assets/models/sign_language_gru.onnx
+    - assets/models/sign_model.json
     - assets/data/core_label_map.json
     - assets/data/core_ksl_word_dictionary.json
 

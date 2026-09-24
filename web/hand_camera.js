@@ -11,6 +11,7 @@ const translation = document.querySelector('#translation');
 const sequence = new SignSequence();
 const asset = path => new URL(`assets/assets/${path}`, location.href).href;
 let poseDetector, signWorker, labels, workerBusy = false, epoch = 0, cancelLoading;
+let modelConfig;
 const edges = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[0,17],[17,18],[18,19],[19,20]];
 let detector, stream, animation, front = true, generation = 0, disposed = false;
 let lastTime = -1, lastInference = -1;
@@ -47,12 +48,14 @@ async function loadLabels() {
     if(!response.ok) throw new Error(`Missing asset: ${path}`);
     return response.json();
   };
-  const [map,words]=await Promise.all([read('data/core_label_map.json'),read('data/core_ksl_word_dictionary.json')]);
-  const names=new Array(112);
-  if(Object.keys(map).length!==112) throw new Error('Expected 112 labels');
+  modelConfig=await read('models/sign_model.json');
+  if(modelConfig.frames!==30 || modelConfig.features!==150 || modelConfig.featureSchema!=='ksl-shoulder-normalized-150-v1') throw new Error('Unsupported feature schema');
+  const [map,words]=await Promise.all([read(modelConfig.labels),read(modelConfig.dictionary)]);
+  const names=new Array(Object.keys(map).length);
+  if(!names.length) throw new Error('Empty labels');
   for(const [key,index] of Object.entries(map)) {
-    if(!Number.isInteger(index) || index<0 || index>=112 || names[index] || !words[key]) throw new Error('Invalid label map');
-    names[index]=words[key];
+    if(!Number.isInteger(index) || index<0 || index>=names.length || names[index] || !words[key]) throw new Error('Invalid label map');
+    names[index]=modelConfig.labelOverrides?.[key] ?? words[key];
   }
   return names;
 }
@@ -74,7 +77,10 @@ function loadTranslator(token) {
       if(data.type==='prediction') {
         workerBusy=false;
         if(data.epoch!==epoch) return;
-        try { translation.textContent=predictionText(data.logits,labels); }
+        try {
+          translation.textContent=predictionText(data.logits,labels);
+          parent.postMessage({type:'signPrediction',display:translation.textContent},location.origin);
+        }
         catch(error) { stop(); status.textContent='수화 결과 처리 오류 · 다시 시도해 주세요.'; console.error(error); }
       }
       if(data.type==='error') {
@@ -83,7 +89,7 @@ function loadTranslator(token) {
         stop(); status.textContent='수화 모델 오류 · 카메라 시작 버튼으로 다시 시도해 주세요.';
       }
     };
-    worker.postMessage({type:'load',url:asset('models/sign_language_gru.onnx')});
+    worker.postMessage({type:'load',url:asset(modelConfig.model),config:modelConfig});
   });
 }
 
@@ -175,6 +181,7 @@ function draw(timestamp) {
       if (!result.landmarks.length || !pose.landmarks.length) {
         // Invalidate outstanding predictions when the subject leaves the frame.
         sequence.missing(timestamp); epoch++;
+        parent.postMessage({type:'signPrediction',display:''},location.origin);
         translation.textContent='양손과 어깨가 보이도록 동작해 주세요';
       } else {
         const features=extractFeatures(result.landmarks,result.handedness,pose.landmarks[0],video.videoWidth,video.videoHeight);

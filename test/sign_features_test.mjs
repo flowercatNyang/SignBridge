@@ -14,14 +14,14 @@ for(const c of cases) test(`Python feature parity: ${c.name}`,()=> {
   // acos near pi amplifies float32/float64 rounding; allow 0.0001 radians.
   actual.forEach((v,i)=>assert.ok(Math.abs(v-c.expected[i])<1e-4,`${c.name}[${i}]: ${v} vs ${c.expected[i]}`));
 });
-test('Only full sequences infer, at most once per second, with a bounded window',()=> {
+test('Only full sequences infer, at most once per 500ms, with a bounded window',()=> {
   const sequence=new SignSequence();
   for(let i=0;i<29;i++) assert.equal(sequence.add(new Float32Array(150).fill(i),i*67),null);
   const input=sequence.add(new Float32Array(150).fill(29),29*67);
   assert.equal(input.length,4500); assert.equal(input[0],0); assert.equal(input[4499],29);
   assert.equal(sequence.add(new Float32Array(150),30*67),null);
-  for(let i=31;i<44;i++) sequence.add(new Float32Array(150),i*67);
-  assert.ok(sequence.add(new Float32Array(150),44*67));
+  assert.equal(sequence.add(new Float32Array(150),29*67+499),null);
+  assert.ok(sequence.add(new Float32Array(150),29*67+500));
   assert.equal(sequence.frames.length,30);
   assert.ok(sequence.add(new Float32Array(150),5000));
   assert.equal(sequence.frames.length,30);
@@ -64,4 +64,13 @@ test('Korean labels follow the class index even at low confidence',()=> {
   assert.equal(predictionText(lowConfidence,labels),'감사 · 2%');
   logits[0]=NaN;
   assert.throws(()=>predictionText(logits,labels),/Invalid/);
+});
+
+test('Replacement models can change class count and distinguish arm from eight',()=> {
+  assert.equal(predictionText([0,20],['가다','8']),'8 · 100%');
+  assert.throws(()=>predictionText([1],['가다','8']),/Invalid/);
+  const config=JSON.parse(readFileSync(new URL('../assets/models/sign_model.json',import.meta.url)));
+  const words=JSON.parse(readFileSync(new URL('../assets/data/core_ksl_word_dictionary.json',import.meta.url)));
+  assert.equal(config.labelOverrides.WORD1147,'팔 (신체)');
+  assert.equal(words.WORD2639,'팔');
 });

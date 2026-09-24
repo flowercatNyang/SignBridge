@@ -48,6 +48,7 @@ class _DemoHomeState extends State<DemoHome> {
   int tab = 0;
   bool sos = false;
   bool notifications = true;
+  bool developerMode = false;
   bool saveHistory = true;
   final devices = <String, bool>{
     '내 스마트폰': true,
@@ -81,7 +82,8 @@ class _DemoHomeState extends State<DemoHome> {
 
   Future<void> startTranslation() async {
     await Navigator.of(context).push<void>(MaterialPageRoute(
-        builder: (_) => TranslationPage(sos: sos, onTab: navigateTab)));
+        builder: (_) => TranslationPage(
+            sos: sos, onTab: navigateTab, developerMode: developerMode)));
   }
 
   @override
@@ -167,16 +169,16 @@ class _DemoHomeState extends State<DemoHome> {
           Badge('이어폰 · 워치', icon: Icons.watch)
         ]),
         gap,
-        modeCard(true, '긴급 상황 SOS', '위기 상황 시 도움 요청',
-            Icons.notification_important, const [
-          Badge('도와주세요!', icon: Icons.pan_tool, color: danger),
-          Badge('119 호출 체험', icon: Icons.phone_in_talk, color: danger)
+        modeCard(true, '단축키 실행', '숫자 수어 1~9로 기능 실행', Icons.apps, const [
+          Badge('1~3 긴급 전화', icon: Icons.phone_in_talk, color: danger),
+          Badge('4 앱 · 5 번역', icon: Icons.apps),
+          Badge('6 메시지 · 7 타이머', icon: Icons.timer_outlined)
         ]),
         const SizedBox(height: 28),
         PrimaryButton('수화 번역 카메라 시작', startTranslation,
-            icon: Icons.camera_alt_outlined, color: sos ? danger : primary),
+            icon: Icons.camera_alt_outlined, color: primary),
         const SizedBox(height: 12),
-        const Text('데모 모드 · 카메라로 손을 인식하며 기기 제어는 준비 중입니다.',
+        const Text('인식된 수어로 기능을 실행합니다. 현재 번역 모델은 개발 중입니다.',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 12, color: muted))
       ]);
@@ -184,7 +186,7 @@ class _DemoHomeState extends State<DemoHome> {
   Widget modeCard(bool emergency, String title, String subtitle, IconData icon,
       List<Widget> tags) {
     final selected = sos == emergency;
-    final color = emergency ? danger : primary;
+    const color = primary;
     return Semantics(
         selected: selected,
         button: true,
@@ -225,25 +227,19 @@ class _DemoHomeState extends State<DemoHome> {
                       const SizedBox(height: 8),
                       TextButton(
                           onPressed: emergency
-                              ? () => message('SOS 안전 안내',
-                                  '이 데모에서는 긴급 신고, 전화 연결, 위치 전송이 이루어지지 않습니다.')
+                              ? () => message('단축키 안내',
+                                  '1: 112 신고\n2: 119 신고\n3: 등록된 번호로 전화\n4: 배달의민족 앱 열기\n5: 한국어 입력 후 영어 번역\n6: 등록된 번호로 메시지\n7: 수어로 타이머 설정\n8~9: 미정 · 기능 준비 중\n\n112·119는 전화 앱의 발신 화면에서 확인합니다.')
                               : openGuide,
                           child: Row(children: [
-                            Icon(
-                                emergency
-                                    ? Icons.warning_amber_outlined
-                                    : Icons.help_outline,
-                                size: 16,
-                                color: color),
+                            Icon(emergency ? Icons.apps : Icons.help_outline,
+                                size: 16, color: color),
                             const SizedBox(width: 6),
                             Expanded(
                                 child: Text(
-                                    emergency
-                                        ? '오작동 방지 안전 락 설정됨'
-                                        : '사용 가능한 제스처 보기',
-                                    style:
-                                        TextStyle(color: color, fontSize: 12))),
-                            Icon(Icons.chevron_right, color: color)
+                                    emergency ? '1~9번 기능 안내' : '사용 가능한 제스처 보기',
+                                    style: const TextStyle(
+                                        color: color, fontSize: 12))),
+                            const Icon(Icons.chevron_right, color: color)
                           ]))
                     ]))));
   }
@@ -344,6 +340,12 @@ class _DemoHomeState extends State<DemoHome> {
         gap,
         Panel(
             child: Column(children: [
+          SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('개발자 모드'),
+              subtitle: const Text('번호 버튼으로 실제 기능 실행을 테스트합니다'),
+              value: developerMode,
+              onChanged: (v) => setState(() => developerMode = v)),
           SwitchListTile(
               contentPadding: EdgeInsets.zero,
               title: const Text('알림 표시'),

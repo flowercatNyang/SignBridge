@@ -23,7 +23,7 @@ final class SignSequence {
         missingSince=-1;
         frames.add(features);
         if (frames.size()>30) frames.removeFirst();
-        if (frames.size()<30 || (lastPrediction>=0 && timestamp-lastPrediction<1000)) return null;
+        if (frames.size()<30 || (lastPrediction>=0 && timestamp-lastPrediction<500)) return null;
         lastPrediction=timestamp;
         float[] input=new float[30*150];
         int offset=0;

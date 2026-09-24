@@ -1,0 +1,11 @@
+{
+  "model": "models/sign_language_gru.onnx",
+  "labels": "data/core_label_map.json",
+  "dictionary": "data/core_ksl_word_dictionary.json",
+  "input": "features",
+  "output": "logits",
+  "featureSchema": "ksl-shoulder-normalized-150-v1",
+  "frames": 30,
+  "features": 150,
+  "labelOverrides": { "WORD1147": "팔 (신체)" }
+}

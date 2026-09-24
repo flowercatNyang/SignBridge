@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:testsign/src/demo_app.dart';
+import 'package:flutter/services.dart';
+import 'package:testsign/src/hand_camera/hand_camera.dart';
+import 'package:testsign/src/sign_commands.dart';
 
 Future<void> launch(WidgetTester tester,
     {Size size = const Size(390, 844), double scale = 1}) async {
@@ -33,12 +36,96 @@ Future<void> tapVisible(WidgetTester tester, String label) async {
 }
 
 void main() {
+  for (var number = 1; number <= 4; number++) {
+    testWidgets('Shortcut $number invokes the correct platform action',
+        (tester) async {
+      final calls = <MethodCall>[];
+      const channel = MethodChannel('signbridge/actions');
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel,
+          (call) async {
+        if (call.method == 'loadPhone') return '01012345678';
+        calls.add(call);
+        return '실행 요청 완료';
+      });
+      addTearDown(() => tester.binding.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null));
+      await launch(tester);
+      await tapVisible(tester, '단축키 실행');
+      await tapVisible(tester, '수화 번역 카메라 시작');
+      final callback =
+          tester.widget<HandCamera>(find.byType(HandCamera)).onPrediction!;
+      for (var i = 0; i < 1; i++) {
+        callback(SignPrediction('$number', .99));
+      }
+      await tester.pumpAndSettle();
+      expect(calls, isEmpty);
+      await tapVisible(tester, '실행');
+      expect(calls.length, 1);
+      expect(
+          calls.single.method, ['dial', 'dial', 'call', 'baemin'][number - 1]);
+      expect(calls.single.arguments['value'],
+          ['112', '119', '01012345678', ''][number - 1]);
+    }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
+  }
+  testWidgets('Shortcut five translates the entered Korean text',
+      (tester) async {
+    final calls = <MethodCall>[];
+    const channel = MethodChannel('signbridge/actions');
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel,
+        (call) async {
+      calls.add(call);
+      return '영어 번역 페이지를 열었습니다.';
+    });
+    addTearDown(() => tester.binding.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, null));
+    await launch(tester);
+    await tapVisible(tester, '단축키 실행');
+    await tapVisible(tester, '수화 번역 카메라 시작');
+    final callback =
+        tester.widget<HandCamera>(find.byType(HandCamera)).onPrediction!;
+    for (var i = 0; i < 3; i++) {
+      callback(const SignPrediction('5', .99));
+    }
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+    expect(calls, isEmpty);
+    await tapVisible(tester, '실행');
+    await tester.enterText(find.byType(TextField), '도움이 필요해요');
+    await tester.tap(find.text('확인'));
+    await tester.pumpAndSettle();
+    expect(calls.single.method, 'translate');
+    expect(calls.single.arguments['value'], '도움이 필요해요');
+  }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
+
+  testWidgets('Platform failure is shown without reporting success',
+      (tester) async {
+    const channel = MethodChannel('signbridge/actions');
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel,
+        (call) async {
+      throw PlatformException(
+          code: 'permission_denied', message: '전화 권한이 거부되었습니다.');
+    });
+    addTearDown(() => tester.binding.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, null));
+    await launch(tester);
+    await tapVisible(tester, '수화 번역 카메라 시작');
+    final callback =
+        tester.widget<HandCamera>(find.byType(HandCamera)).onPrediction!;
+    for (var i = 0; i < 3; i++) {
+      callback(const SignPrediction('전화 끊어줘', .99));
+    }
+    await tester.pumpAndSettle();
+    await tapVisible(tester, '실행');
+    expect(find.textContaining('전화 권한이 거부되었습니다.'), findsOneWidget);
+    expect(find.text('통화를 종료했습니다.'), findsNothing);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
+
   testWidgets('Camera page opens without automatically executing commands',
       (tester) async {
     await launch(tester);
     await tapVisible(tester, '수화 번역 카메라 시작');
     expect(find.text('실시간 손 인식'), findsOneWidget);
-    expect(find.text('명령 실행'), findsOneWidget);
+    expect(find.text('인식 대기 중'), findsOneWidget);
     expect(find.byType(ChoiceChip), findsNothing);
     expect(find.textContaining('Android 앱 또는 웹 브라우저'), findsOneWidget);
     await tapVisible(tester, '기록');
@@ -46,41 +133,52 @@ void main() {
     expect(tester.takeException(), isNull);
   }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 
-  testWidgets(
-      'Manual execution shows processing then completion and returns to camera',
+  testWidgets('Recognized call command executes once and can be rearmed',
       (tester) async {
+    var calls = 0;
+    const channel = MethodChannel('signbridge/actions');
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel,
+        (call) async {
+      expectSync(call.method, 'endCall');
+      calls++;
+      return '통화를 종료했습니다.';
+    });
+    addTearDown(() => tester.binding.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, null));
     await launch(tester);
     await tapVisible(tester, '수화 번역 카메라 시작');
-    await tester.ensureVisible(find.text('명령 실행'));
-    await tester.tap(find.text('명령 실행'));
-    await tester.pump();
-    expect(find.text('명령 실행 중...'), findsOneWidget);
-    expect(find.text('명령 실행 완료'), findsNothing);
-    expect(find.textContaining('Android 앱 또는 웹 브라우저'), findsNothing);
-    await tester.pump(const Duration(seconds: 2));
+    final callback =
+        tester.widget<HandCamera>(find.byType(HandCamera)).onPrediction!;
+    for (var i = 0; i < 10; i++) {
+      callback(const SignPrediction('통화 종료해줘', .99));
+    }
     await tester.pumpAndSettle();
-    expect(find.text('명령 실행 완료'), findsOneWidget);
+    expect(calls, 0);
+    await tapVisible(tester, '실행');
+    expect(calls, 1);
+    expect(find.text('통화를 종료했습니다.'), findsOneWidget);
     await tapVisible(tester, '다시 인식하기');
-    expect(find.text('실시간 손 인식'), findsOneWidget);
-    await tester.ensureVisible(find.text('명령 실행'));
-    await tester.tap(find.text('명령 실행'));
-    await tester.pump();
-    await tester.pump(const Duration(seconds: 2));
+    for (var i = 0; i < 3; i++) {
+      callback(const SignPrediction('전화 끊어줘', .99));
+    }
     await tester.pumpAndSettle();
-    await tapVisible(tester, '확인');
-    await tapVisible(tester, '기록');
-    expect(find.text('전화 끊어줘'), findsOneWidget);
+    await tapVisible(tester, '실행');
+    expect(calls, 2);
     expect(tester.takeException(), isNull);
   }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 
-  testWidgets('Leaving during processing cancels completion', (tester) async {
+  testWidgets('Reserved shortcut does not call the platform', (tester) async {
     await launch(tester);
-    await tapVisible(tester, '긴급 상황 SOS');
+    await tapVisible(tester, '단축키 실행');
     await tapVisible(tester, '수화 번역 카메라 시작');
-    await tester.ensureVisible(find.text('명령 실행'));
-    await tester.tap(find.text('명령 실행'));
-    await tester.pump();
-    expect(find.text('“도와주세요”'), findsOneWidget);
+    final callback =
+        tester.widget<HandCamera>(find.byType(HandCamera)).onPrediction!;
+    for (var i = 0; i < 3; i++) {
+      callback(const SignPrediction('8', .99));
+    }
+    await tester.pumpAndSettle();
+    await tapVisible(tester, '실행');
+    expect(find.text('8번: 미정 · 아직 기능이 없습니다.'), findsOneWidget);
     await tapVisible(tester, '기록');
     await tester.pump(const Duration(seconds: 3));
     expect(find.text('명령 실행 완료'), findsNothing);
@@ -135,12 +233,16 @@ void main() {
     expect(tester.takeException(), isNull);
   }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 
-  testWidgets('SOS opens tracking only and adds no history', (tester) async {
+  testWidgets('Shortcut mode opens without executing a command',
+      (tester) async {
     await launch(tester);
-    await tapVisible(tester, '긴급 상황 SOS');
+    await tapVisible(tester, '단축키 실행');
     await tapVisible(tester, '수화 번역 카메라 시작');
-    expect(find.text('SOS · 손 인식 데모'), findsOneWidget);
-    expect(find.text('명령 실행'), findsOneWidget);
+    expect(find.text('단축키 · 숫자 수어 1~9'), findsOneWidget);
+    await tester.scrollUntilVisible(
+        find.text('기본 수어 모델로 숫자 1~9를 인식합니다. 현재 모델의 정확도는 개선 중입니다.'), 300);
+    expect(find.textContaining('모델에 없는'), findsNothing);
+    expect(find.text('인식 대기 중'), findsOneWidget);
     await tapVisible(tester, '기록');
     expect(find.text('도와주세요'), findsNothing);
     expect(tester.takeException(), isNull);

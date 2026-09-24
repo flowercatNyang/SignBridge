@@ -23,6 +23,8 @@ import com.google.mediapipe.tasks.vision.handlandmarker.HandLandmarkerResult;
 import com.google.mediapipe.tasks.vision.poselandmarker.PoseLandmarker;
 import com.google.mediapipe.tasks.vision.poselandmarker.PoseLandmarkerResult;
 import io.flutter.plugin.common.StandardMessageCodec;
+import io.flutter.plugin.common.BinaryMessenger;
+import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugin.platform.PlatformView;
 import io.flutter.plugin.platform.PlatformViewFactory;
 import java.io.ByteArrayOutputStream;
@@ -37,9 +39,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public final class HandCameraView implements PlatformView, Application.ActivityLifecycleCallbacks {
     public static final class Factory extends PlatformViewFactory {
         private final Activity activity;
-        public Factory(Activity activity) { super(StandardMessageCodec.INSTANCE); this.activity = activity; }
+        private final BinaryMessenger messenger;
+        public Factory(Activity activity, BinaryMessenger messenger) { super(StandardMessageCodec.INSTANCE); this.activity = activity; this.messenger = messenger; }
         @Override public PlatformView create(Context context, int id, Object args) {
-            return new HandCameraView(activity);
+            return new HandCameraView(activity, new MethodChannel(messenger, "signbridge/predictions/" + id));
         }
     }
     private static WeakReference<HandCameraView> active = new WeakReference<>(null);
@@ -51,6 +54,7 @@ public final class HandCameraView implements PlatformView, Application.ActivityL
         }
     }
     private final Activity activity;
+    private final MethodChannel predictions;
     private final LinearLayout root;
     private final FrameView preview;
     private final TextView status;
@@ -70,8 +74,9 @@ public final class HandCameraView implements PlatformView, Application.ActivityL
     private int generation;
     private long lastFrame;
 
-    private HandCameraView(Activity activity) {
+    private HandCameraView(Activity activity, MethodChannel predictions) {
         this.activity = activity;
+        this.predictions = predictions;
         active = new WeakReference<>(this);
         root = new LinearLayout(activity);
         root.setOrientation(LinearLayout.VERTICAL);
@@ -116,6 +121,7 @@ public final class HandCameraView implements PlatformView, Application.ActivityL
         int token = generation;
         status.setText("손 인식 모델을 불러오는 중…");
         worker.execute(() -> {
+            String loadingStage = "손 추적 모델";
             try {
                 landmarker = HandLandmarker.createFromOptions(activity,
                     HandLandmarker.HandLandmarkerOptions.builder()
@@ -125,6 +131,7 @@ public final class HandCameraView implements PlatformView, Application.ActivityL
                         .setMinHandDetectionConfidence(0.5f)
                         .setMinHandPresenceConfidence(0.5f)
                         .setMinTrackingConfidence(0.5f).build());
+                loadingStage = "자세 추적 모델";
                 poseLandmarker = PoseLandmarker.createFromOptions(activity,
                     PoseLandmarker.PoseLandmarkerOptions.builder()
                         .setBaseOptions(BaseOptions.builder()
@@ -133,9 +140,17 @@ public final class HandCameraView implements PlatformView, Application.ActivityL
                         .setMinPoseDetectionConfidence(0.5f)
                         .setMinPosePresenceConfidence(0.5f)
                         .setMinTrackingConfidence(0.5f).build());
+                loadingStage = "기본 수어 모델 (GRU)";
                 translator = new SignTranslator(activity.getAssets());
-                main.post(() -> { if (valid(token)) openCamera(token); });
-            } catch (Exception e) { fail(token, "손·자세·수화 모델을 불러오지 못했습니다. 다시 시도해 주세요.", e); }
+                main.post(() -> {
+                    if (valid(token)) {
+                        translation.setText("수어 모델 로딩 완료\n동작을 보여 주세요.");
+                        openCamera(token);
+                    }
+                });
+            } catch (Exception | LinkageError e) {
+                fail(token, loadingStage + " 로딩 실패. 다시 시도해 주세요.", e);
+            }
         });
     }
 
@@ -225,6 +240,7 @@ public final class HandCameraView implements PlatformView, Application.ActivityL
                 preview.mirror = mirror;
                 preview.invalidate();
                 if (translated != null) {
+                    predictions.invokeMethod("prediction", translated);
                     String content = "수화 번역\n" + translated;
                     if (!translation.getText().toString().equals(content)) translation.setText(content);
                 }
@@ -245,9 +261,10 @@ public final class HandCameraView implements PlatformView, Application.ActivityL
         return values;
     }
 
-    private void fail(int token, String message, Exception error) {
+    private void fail(int token, String message, Throwable error) {
         android.util.Log.e("HandCamera", message, error);
-        main.post(() -> { if (valid(token)) { stop(); status.setText(message); } });
+        String detail = error.getClass().getSimpleName() + ": " + String.valueOf(error.getMessage());
+        main.post(() -> { if (valid(token)) { stop(); status.setText(message + "\n" + detail); } });
     }
 
     private void stop() {

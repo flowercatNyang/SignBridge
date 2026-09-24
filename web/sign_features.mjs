@@ -65,7 +65,7 @@ export class SignSequence {
     this.missingSince=null;
     this.frames.push(features);
     if (this.frames.length>30) this.frames.shift();
-    if (this.frames.length<30 || timestamp-this.lastPrediction<1000) return null;
+    if (this.frames.length<30 || timestamp-this.lastPrediction<500) return null;
     this.lastPrediction=timestamp;
     const input=new Float32Array(30*150);
     this.frames.forEach((frame,i)=>input.set(frame,i*150));
@@ -74,7 +74,7 @@ export class SignSequence {
 }
 
 export function predictionText(logits, labels) {
-  if (logits.length!==112 || labels.length!==112 || !Array.from(logits).every(Number.isFinite)) {
+  if (!labels.length || logits.length!==labels.length || !Array.from(logits).every(Number.isFinite)) {
     throw new Error('Invalid sign model output');
   }
   const best=Array.from(logits).reduce((a,_,i)=>logits[i]>logits[a]?i:a,0);

@@ -13,6 +13,8 @@ public final class SignSequenceCheck {
         }
         check(sequence.add(frame,29*1200).length==4500);
         check(sequence.add(frame,29*1200+100)==null);
+        check(sequence.add(frame,29*1200+499)==null);
+        check(sequence.add(frame,29*1200+500).length==4500);
         check(sequence.size()==30);
         sequence.reset();
         check(sequence.size()==0);
