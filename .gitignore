@@ -1,0 +1,28 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# PyTorch models
+*.pth
+
+# Virtual environment
+venv/
+env/
+.env
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Datasets and large arrays
+data/
+*.npy
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Scratch / Temp
+scratch/
+duplicates_report.txt
+dropped_words.txt
