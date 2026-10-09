@@ -19,20 +19,22 @@ def put_korean_text(img, text, position, font_size, color):
     draw.text(position, text, font=font, fill=(b, g, r))
     return np.array(img_pil)
 
-def load_models_and_maps(base_dir, device):
+def load_models_and_maps(base_dir, device, checkpoint_path=None):
     """
     Loads JSON maps and the PyTorch models for inference.
     """
     label_map_path = os.path.join(base_dir, "core_label_map.json") if os.path.exists(os.path.join(base_dir, "core_label_map.json")) else os.path.join(base_dir, "data", "processed", "core_label_map.json")
     category_map_path = os.path.join(base_dir, "core_category_map.json") if os.path.exists(os.path.join(base_dir, "core_category_map.json")) else os.path.join(base_dir, "data", "processed", "core_category_map.json")
-    model_path = os.path.join(base_dir, "models", "sign_language_gru.pth") if os.path.exists(os.path.join(base_dir, "models", "sign_language_gru.pth")) else os.path.join(base_dir, "sign_language_gru.pth")
+    model_path = checkpoint_path or os.path.join(base_dir, "models", "sign_language_gru.pth")
     dict_path = os.path.join(base_dir, "core_ksl_word_dictionary.json") if os.path.exists(os.path.join(base_dir, "core_ksl_word_dictionary.json")) else os.path.join(base_dir, "data", "processed", "core_ksl_word_dictionary.json")
 
     if os.path.exists(label_map_path):
         with open(label_map_path, "r", encoding="utf-8") as f:
             label_map = json.load(f)
     else:
-        label_map = {f"WORD{i+1:04d}": i for i in range(114)}
+        raise FileNotFoundError(f"Label map not found: {label_map_path}")
+    if len(label_map) != 73:
+        raise ValueError(f"Expected 73 classes, found {len(label_map)}")
 
     korean_dict = {}
     if os.path.exists(dict_path):
@@ -48,11 +50,17 @@ def load_models_and_maps(base_dir, device):
     menu_number_map = {int(k): v for k, v in cat_map_data["menu_number_map"].items()}
     all_menu_indices = cat_map_data["all_menu_indices"]
 
-    model = SignLanguageModel(num_classes=len(label_map), input_dim=150, hidden_dim=64, num_layers=2).to(device)
-    
-    if os.path.exists(model_path):
-        state = torch.load(model_path, map_location=device)
-        model.load_state_dict(state)
+    if not os.path.exists(model_path):
+        raise FileNotFoundError(
+            f"Checkpoint not found: {model_path}. Run train_pipeline.py or pass --checkpoint."
+        )
+    checkpoint = torch.load(model_path, map_location=device)
+    if checkpoint.get("format_version") != 2:
+        raise ValueError(
+            "Legacy 150D checkpoints are incompatible with the 452D feature pipeline."
+        )
+    model = SignLanguageModel(**checkpoint["model_config"]).to(device)
+    model.load_state_dict(checkpoint["model_state"])
     
     model.eval()
     

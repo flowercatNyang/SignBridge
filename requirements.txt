@@ -1,0 +1,6 @@
+mediapipe
+matplotlib
+numpy
+opencv-python
+Pillow
+torch
