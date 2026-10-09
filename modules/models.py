@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from .features import INPUT_DIM, SEQUENCE_LENGTH
+from .vocabulary import NUM_CLASSES
 
 
 class DepthwiseConv1D(nn.Module):
@@ -70,7 +71,8 @@ class SignLanguageEncoder(nn.Module):
 
 
 class SignLanguageModel(nn.Module):
-    def __init__(self, num_classes=73, input_dim=INPUT_DIM, hidden_dim=64, num_layers=2):
+    # def __init__(self, num_classes=73, input_dim=INPUT_DIM, hidden_dim=64, num_layers=2):
+    def __init__(self, num_classes=NUM_CLASSES, input_dim=INPUT_DIM, hidden_dim=64, num_layers=2):
         super().__init__()
         self.config = {
             "num_classes": num_classes,

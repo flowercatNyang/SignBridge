@@ -10,6 +10,7 @@ import torch
 from torch.utils.data import Dataset, Sampler
 
 from .features import INPUT_DIM, SEQUENCE_LENGTH
+from .vocabulary import EXPECTED_PER_CLASS, LABEL_MAP, NUM_CLASSES
 
 
 DOMAIN_TO_ID = {"expert": 0, "team": 1, "external": 2}
@@ -43,11 +44,16 @@ def read_manifest(manifest_path):
     return samples
 
 
-def validate_training_manifest(samples, num_classes=73):
+# def validate_training_manifest(samples, num_classes=73):
+def validate_training_manifest(samples, num_classes=NUM_CLASSES):
+    for sample in samples:
+        if sample.class_key not in LABEL_MAP or LABEL_MAP[sample.class_key] != sample.label:
+            raise ValueError(f"Manifest vocabulary mismatch: {sample.class_key}/{sample.label}")
     labels = {sample.label for sample in samples if sample.domain != "external"}
     if labels != set(range(num_classes)):
         raise ValueError(f"Expected labels 0..{num_classes - 1}, found {len(labels)} classes")
-    for domain, minimum in (("expert", 50), ("team", 9)):
+    # for domain, minimum in (("expert", 50), ("team", 9)):
+    for domain, minimum in EXPECTED_PER_CLASS.items():
         for label in range(num_classes):
             count = sum(sample.domain == domain and sample.label == label for sample in samples)
             if count < minimum:
@@ -56,7 +62,7 @@ def validate_training_manifest(samples, num_classes=73):
                 )
 
 
-def make_loso_split(samples, held_out_signer, validation_fraction=0.1, seed=42):
+def make_loso_split(samples, held_out_signer, validation_fraction=0.1, seed=42, validation_signer=None):
     held_out = [
         sample
         for sample in samples
@@ -64,14 +70,18 @@ def make_loso_split(samples, held_out_signer, validation_fraction=0.1, seed=42):
     ]
     if not held_out:
         raise ValueError(f"No team samples found for held-out signer: {held_out_signer}")
+    if validation_signer == held_out_signer:
+        raise ValueError("Validation signer and test signer must differ")
 
     rng = random.Random(seed)
     expert_by_class = defaultdict(list)
-    team_train = []
+    team_train, team_validation = [], []
     external = []
     for sample in samples:
         if sample.domain == "expert":
             expert_by_class[sample.label].append(sample)
+        elif sample.domain == "team" and sample.signer_id == validation_signer:
+            team_validation.append(sample)
         elif sample.domain == "team" and sample.signer_id != held_out_signer:
             team_train.append(sample)
         elif sample.domain == "external":
@@ -83,11 +93,14 @@ def make_loso_split(samples, held_out_signer, validation_fraction=0.1, seed=42):
         count = max(1, int(round(len(label_samples) * validation_fraction)))
         validation.extend(label_samples[:count])
         expert_train.extend(label_samples[count:])
+    if validation_signer and not team_validation:
+        raise ValueError(f"No videos for validation signer {validation_signer}")
     return {
         "stage0": expert_train + team_train,
         "expert_train": expert_train,
         "adapt_train": expert_train + team_train,
         "validation": validation,
+        "team_validation": team_validation,
         "held_out": held_out,
         "external": external,
     }

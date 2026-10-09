@@ -7,6 +7,7 @@ import numpy as np
 
 from modules.migration import convert_expert_sequence
 from modules.preprocessing import load_manifest, validate_counts, write_manifest
+from modules.vocabulary import LABEL_MAP, NUM_CLASSES
 
 
 def validate_inputs(features, labels, label_map):
@@ -16,22 +17,28 @@ def validate_inputs(features, labels, label_map):
         raise ValueError(f"y must have shape [N], found {labels.shape}")
     if len(features) != len(labels):
         raise ValueError(f"X has {len(features)} samples but y has {len(labels)}")
-    if len(label_map) != 73 or set(label_map.values()) != set(range(73)):
-        raise ValueError("core_label_map.json must contain contiguous labels 0..72")
+    # if len(label_map) != 73 or set(label_map.values()) != set(range(73)):
+    #     raise ValueError("core_label_map.json must contain contiguous labels 0..72")
+    source_classes = len(label_map)
+    if set(label_map.values()) != set(range(source_classes)):
+        raise ValueError("Source label map must use contiguous labels")
     if not np.issubdtype(labels.dtype, np.integer):
         if not np.isfinite(labels).all() or not np.equal(labels, labels.astype(np.int64)).all():
             raise ValueError("y must contain integer class labels")
     labels = labels.astype(np.int64)
-    if np.any((labels < 0) | (labels >= 73)):
-        raise ValueError("y contains a label outside 0..72")
-    counts = np.bincount(labels, minlength=73)
+    # if np.any((labels < 0) | (labels >= 73)):
+    #     raise ValueError("y contains a label outside 0..72")
+    if np.any((labels < 0) | (labels >= source_classes)):
+        raise ValueError("y contains a label outside its source label map")
+    # counts = np.bincount(labels, minlength=73)
+    counts = np.bincount(labels, minlength=source_classes)
     missing = [f"label {index}: {count} found, 50 required" for index, count in enumerate(counts) if count < 50]
     if missing:
         raise ValueError("Expert count validation failed:\n" + "\n".join(missing[:20]))
     return labels
 
 
-def migrate(x_path, y_path, processed_root, overwrite=False):
+def migrate(x_path, y_path, processed_root, overwrite=False, source_map_path=None):
     processed_root = Path(processed_root)
     label_map_path = processed_root / "core_label_map.json"
     with label_map_path.open("r", encoding="utf-8") as handle:
@@ -40,7 +47,15 @@ def migrate(x_path, y_path, processed_root, overwrite=False):
 
     features = np.load(x_path, mmap_mode="r")
     raw_labels = np.load(y_path, mmap_mode="r")
-    labels = validate_inputs(features, raw_labels, label_map)
+    # labels = validate_inputs(features, raw_labels, label_map)
+    # Original arrays contain 73 classes; select by WORD key before remapping.
+    source_map_path = source_map_path or Path(x_path).parent / "core_label_map.json"
+    with Path(source_map_path).open("r", encoding="utf-8") as handle:
+        source_map = json.load(handle)
+    source_labels = validate_inputs(features, raw_labels, source_map)
+    if label_map != LABEL_MAP:
+        raise ValueError(f"Expected active {NUM_CLASSES}-word processed map")
+    remap = {source_map[key]: label for key, label in LABEL_MAP.items()}
 
     manifest_path = processed_root / "manifest.csv"
     existing = load_manifest(manifest_path)
@@ -51,7 +66,11 @@ def migrate(x_path, y_path, processed_root, overwrite=False):
 
     rows = [row for row in existing if row["domain"] != "expert"]
     expert_rows = []
-    for index, label in enumerate(labels):
+    # for index, label in enumerate(labels):
+    for index, source_label in enumerate(source_labels):
+        if int(source_label) not in remap:
+            continue
+        label = remap[int(source_label)]
         class_key = index_to_key[int(label)]
         output_path = (
             processed_root
@@ -86,10 +105,14 @@ def main():
     parser = argparse.ArgumentParser(
         description="Migrate legacy expert X/y NPY files to per-sample NPZ files"
     )
-    parser.add_argument("--x", type=Path, default=Path("data/processed/X_train.npy"))
-    parser.add_argument("--y", type=Path, default=Path("data/processed/y_train.npy"))
-    parser.add_argument("--processed-root", type=Path, default=Path("data/processed"))
+    # parser.add_argument("--x", type=Path, default=Path("data/processed/X_train.npy"))
+    # parser.add_argument("--y", type=Path, default=Path("data/processed/y_train.npy"))
+    # parser.add_argument("--processed-root", type=Path, default=Path("data/processed"))
+    parser.add_argument("--x", type=Path, default=Path("data/X_train.npy"))
+    parser.add_argument("--y", type=Path, default=Path("data/y_train.npy"))
+    parser.add_argument("--processed-root", type=Path, default=Path("data/processed_five"))
     parser.add_argument("--overwrite", action="store_true")
+    parser.add_argument("--source-map", type=Path)
     args = parser.parse_args()
 
     count, manifest_path = migrate(
@@ -97,6 +120,7 @@ def main():
         args.y.resolve(),
         args.processed_root.resolve(),
         args.overwrite,
+        args.source_map,
     )
     print(f"Migrated {count} expert samples.")
     print(f"Manifest: {manifest_path}")

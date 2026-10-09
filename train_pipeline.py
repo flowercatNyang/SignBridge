@@ -16,6 +16,7 @@ from modules.data import (
 )
 from modules.features import INPUT_DIM
 from modules.models import MaskedSequenceAutoencoder, SignLanguageModel, SignerClassifier
+from modules.vocabulary import LABEL_MAP, NUM_CLASSES, WORDS
 
 
 def mask_inputs(inputs, ratio):
@@ -63,6 +64,8 @@ def classification_epoch(
 ):
     training = optimizer is not None
     model.train(training)
+    if training and not any(parameter.requires_grad for parameter in model.encoder.parameters()):
+        model.encoder.eval()
     if signer_head is not None:
         signer_head.train(training)
     total_loss, correct, total = 0.0, 0, 0
@@ -102,10 +105,26 @@ def run_classification_stage(
     epochs,
     output_dir,
     signer_head=None,
+    team_validation_loader=None,
 ):
     history = []
     best_accuracy = -1.0
+    best_loss = float("inf")
     best_path = output_dir / f"{name}_best.pth"
+    # Keep the pre-adaptation model if adaptation lowers validation performance.
+    initial_loss, initial_accuracy = classification_epoch(model, validation_loader, device)
+    best_accuracy, best_loss = initial_accuracy, initial_loss
+    initial = {"epoch": 0, "validation_loss": initial_loss,
+               "validation_accuracy": initial_accuracy}
+    if team_validation_loader is not None:
+        team_loss, team_accuracy = classification_epoch(model, team_validation_loader, device)
+        best_accuracy = (initial_accuracy + team_accuracy) / 2
+        best_loss = (initial_loss + team_loss) / 2
+        initial.update(team_validation_loss=team_loss, team_validation_accuracy=team_accuracy)
+    initial["selection_score"] = best_accuracy
+    history.append(initial)
+    torch.save({"model_state": model.state_dict(),
+                "signer_state": signer_head.state_dict() if signer_head else None}, best_path)
     for epoch in range(1, epochs + 1):
         sampler = getattr(train_loader, "batch_sampler", None)
         if hasattr(sampler, "set_epoch"):
@@ -123,14 +142,28 @@ def run_classification_stage(
             "validation_loss": validation_loss,
             "validation_accuracy": validation_accuracy,
         }
+        selection_score = validation_accuracy
+        selection_loss = validation_loss
+        if team_validation_loader is not None:
+            team_loss, team_accuracy = classification_epoch(model, team_validation_loader, device)
+            result.update(team_validation_loss=team_loss, team_validation_accuracy=team_accuracy)
+            selection_score = (validation_accuracy + team_accuracy) / 2
+            selection_loss = (validation_loss + team_loss) / 2
+        result["selection_score"] = selection_score
         history.append(result)
         print(
             f"{name} epoch {epoch:02d}: "
             f"train_loss={train_loss:.4f} train_acc={train_accuracy:.4f} "
-            f"val_loss={validation_loss:.4f} val_acc={validation_accuracy:.4f}"
+            f"val_loss={validation_loss:.4f} val_acc={validation_accuracy:.4f} "
+            f"team_val_acc={result.get('team_validation_accuracy', float('nan')):.4f}",
+            flush=True,
         )
-        if validation_accuracy > best_accuracy:
-            best_accuracy = validation_accuracy
+        # if validation_accuracy > best_accuracy:
+        #     best_accuracy = validation_accuracy
+        # Equal weight for expert and unseen validation signer during adaptation.
+        if selection_score > best_accuracy or (selection_score == best_accuracy and selection_loss < best_loss):
+            best_accuracy = selection_score
+            best_loss = selection_loss
             torch.save(
                 {
                     "model_state": model.state_dict(),
@@ -160,14 +193,18 @@ def save_final_checkpoint(path, model, held_out_signer, signer_map):
         "held_out_signer": held_out_signer,
         "signer_map": signer_map,
         "model_state": model.state_dict(),
+        "label_map": LABEL_MAP,
+        "word_dictionary": WORDS,
     }
     torch.save(checkpoint, path)
 
 
 def main():
     parser = argparse.ArgumentParser(description="Four-stage LOSO sign-language training")
-    parser.add_argument("--manifest", type=Path, default=Path("data/processed/manifest.csv"))
+    # parser.add_argument("--manifest", type=Path, default=Path("data/processed/manifest.csv"))
+    parser.add_argument("--manifest", type=Path, default=Path("data/processed_five/manifest.csv"))
     parser.add_argument("--held-out-signer", required=True)
+    parser.add_argument("--validation-signer", required=True)
     parser.add_argument("--output-dir", type=Path)
     parser.add_argument("--export-path", type=Path)
     parser.add_argument("--batch-size", type=int, default=64)
@@ -188,7 +225,9 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     samples = read_manifest(args.manifest)
     validate_training_manifest(samples)
-    splits = make_loso_split(samples, args.held_out_signer, seed=args.seed)
+    # splits = make_loso_split(samples, args.held_out_signer, seed=args.seed)
+    splits = make_loso_split(samples, args.held_out_signer, seed=args.seed,
+                             validation_signer=args.validation_signer)
     signer_map = build_signer_map(splits["stage0"])
 
     output_dir = args.output_dir or Path("models") / f"loso_{args.held_out_signer}"
@@ -197,7 +236,7 @@ def main():
     datasets = {
         name: KSLDataset(rows, signer_map)
         for name, rows in splits.items()
-        if name in {"stage0", "expert_train", "adapt_train", "validation"}
+        if name in {"stage0", "expert_train", "adapt_train", "validation", "team_validation"}
     }
     common = {"num_workers": args.workers, "pin_memory": device.type == "cuda"}
     stage0_loader = DataLoader(
@@ -209,6 +248,8 @@ def main():
     validation_loader = DataLoader(
         datasets["validation"], batch_size=args.batch_size, shuffle=False, **common
     )
+    team_validation_loader = DataLoader(datasets["team_validation"], batch_size=args.batch_size,
+                                       shuffle=False, **common)
     balanced_sampler = BalancedDomainBatchSampler(
         splits["adapt_train"], batch_size=args.batch_size, seed=args.seed
     )
@@ -216,7 +257,10 @@ def main():
         datasets["adapt_train"], batch_sampler=balanced_sampler, **common
     )
 
-    model = SignLanguageModel(num_classes=73, input_dim=INPUT_DIM).to(device)
+    # model = SignLanguageModel(num_classes=73, input_dim=INPUT_DIM).to(device)
+    model = SignLanguageModel(num_classes=NUM_CLASSES, input_dim=INPUT_DIM).to(device)
+    print(f"Device: {device}; classes: {NUM_CLASSES}; splits: "
+          f"{ {name: len(rows) for name, rows in splits.items()} }", flush=True)
     history = {}
     history["stage0"] = run_stage0(
         model,
@@ -239,6 +283,7 @@ def main():
         args.stage1_epochs,
         output_dir,
     )
+    save_final_checkpoint(output_dir / "expert_only.pth", model, args.held_out_signer, signer_map)
 
     for parameter in model.encoder.parameters():
         parameter.requires_grad = False
@@ -252,6 +297,7 @@ def main():
         device,
         args.stage2_epochs,
         output_dir,
+        team_validation_loader=team_validation_loader,
     )
 
     for parameter in model.encoder.parameters():
@@ -275,6 +321,7 @@ def main():
         args.stage3_epochs,
         output_dir,
         signer_head,
+        team_validation_loader=team_validation_loader,
     )
 
     final_path = output_dir / "final.pth"
@@ -284,6 +331,13 @@ def main():
         save_final_checkpoint(args.export_path, model, args.held_out_signer, signer_map)
     with (output_dir / "training_history.json").open("w", encoding="utf-8") as handle:
         json.dump(history, handle, ensure_ascii=False, indent=2)
+    with (output_dir / "split_summary.json").open("w", encoding="utf-8") as handle:
+        json.dump({"held_out_signer": args.held_out_signer,
+                   "validation_signer": args.validation_signer,
+                   "seed": args.seed,
+                   "counts": {name: len(rows) for name, rows in splits.items()},
+                   "training_signers": sorted(signer_map),
+                   "label_map": LABEL_MAP, "words": WORDS}, handle, ensure_ascii=False, indent=2)
     print(f"Saved final checkpoint to {final_path}")
 
 

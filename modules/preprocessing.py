@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import re
+import unicodedata
 from pathlib import Path
 
 import cv2
@@ -12,10 +13,11 @@ import numpy as np
 
 from .features import build_temporal_features, extract_keypoints
 from .utils import MockResults
+from .vocabulary import EXPECTED_PER_CLASS, LABEL_MAP, NUM_CLASSES, WORDS
 
 
 VIDEO_EXTENSIONS = {".mp4", ".avi", ".mov", ".mkv", ".webm"}
-EXPECTED_PER_CLASS = {"expert": 50, "team": 9}
+# EXPECTED_PER_CLASS = {"expert": 50, "team": 9}  # Previous 73-word experiment.
 DOMAINS = ("expert", "team", "external")
 
 
@@ -44,17 +46,30 @@ def create_landmarkers(project_dir):
     )
 
 
-def process_video(video_path, hand_landmarker, pose_landmarker):
+def resize_for_detection(frame, max_dimension=640):
+    if max(frame.shape[:2]) <= max_dimension:
+        return frame
+    scale = max_dimension / max(frame.shape[:2])
+    return cv2.resize(frame, None, fx=scale, fy=scale)
+
+
+def process_video(video_path, hand_landmarker, pose_landmarker, frame_stride=2):
     capture = cv2.VideoCapture(str(video_path))
     if not capture.isOpened():
         raise ValueError(f"Cannot open video: {video_path}")
 
     frame_features, hand_masks = [], []
     try:
+        frame_index = 0
         while True:
             success, frame = capture.read()
             if not success:
                 break
+            frame_index += 1
+            if frame_index % frame_stride:
+                continue
+            # Same stride as webcam inference; limit detection resolution.
+            frame = resize_for_detection(frame)
             height, width = frame.shape[:2]
             image = mp.Image(
                 image_format=mp.ImageFormat.SRGB,
@@ -70,6 +85,24 @@ def process_video(video_path, hand_landmarker, pose_landmarker):
     if not frame_features:
         raise ValueError(f"No frames decoded: {video_path}")
     return build_temporal_features(frame_features, hand_masks)
+
+
+def parse_team_filename(video_path):
+    """Two tokens mean frontal; three tokens carry the camera angle."""
+    parts = unicodedata.normalize("NFC", Path(video_path).stem).split("_")
+    if len(parts) == 2:
+        signer, word = parts
+        angle = "정면"
+    elif len(parts) == 3:
+        signer, angle, word = parts
+    else:
+        raise ValueError(f"Expected signer_[angle_]word: {video_path}")
+    if not signer or not angle:
+        raise ValueError(f"Empty signer or angle: {video_path}")
+    matches = [key for key, name in WORDS.items() if name == word]
+    if len(matches) != 1:
+        raise ValueError(f"Unknown active word {word!r}: {video_path}")
+    return signer, angle, matches[0]
 
 
 def find_class_key(path, label_map):
@@ -113,7 +146,7 @@ def load_manifest(manifest_path):
 
 def write_manifest(manifest_path, rows):
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
-    fields = ["path", "label", "class_key", "domain", "signer_id", "source_video"]
+    fields = ["path", "label", "class_key", "domain", "signer_id", "source_video", "camera_angle"]
     with manifest_path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fields)
         writer.writeheader()
@@ -136,25 +169,38 @@ def validate_counts(rows, label_map, domains):
         raise ValueError(f"Dataset count validation failed:\n{preview}")
 
 
-def run_preprocessing(project_dir, raw_root, processed_root, domains, overwrite=False):
+def run_preprocessing(project_dir, raw_root, processed_root, domains, overwrite=False, flat_team_root=None):
     label_map_path = processed_root / "core_label_map.json"
     with label_map_path.open("r", encoding="utf-8") as handle:
         label_map = json.load(handle)
-    if len(label_map) != 73:
-        raise ValueError(f"Expected 73 classes, found {len(label_map)}")
+    # if len(label_map) != 73:
+    #     raise ValueError(f"Expected 73 classes, found {len(label_map)}")
+    if label_map != LABEL_MAP:
+        raise ValueError(f"Expected the active {NUM_CLASSES}-word label map")
 
     manifest_path = processed_root / "manifest.csv"
     retained = [row for row in load_manifest(manifest_path) if row["domain"] not in domains]
     rows, failures = [], []
     hands, pose = create_landmarkers(project_dir)
     try:
-        for domain, domain_root, video_path in discover_videos(raw_root, domains):
+        videos = list(discover_videos(raw_root, domains))
+        if flat_team_root is not None:
+            if "team" not in domains:
+                raise ValueError("--flat-team-root requires --domain team")
+            videos.extend(("team", flat_team_root, p) for p in sorted(flat_team_root.iterdir())
+                          if p.is_file() and p.suffix.lower() in VIDEO_EXTENSIONS)
+        for video_index, (domain, domain_root, video_path) in enumerate(videos, 1):
             class_key = find_class_key(video_path, label_map)
-            if class_key is None:
+            flat = flat_team_root is not None and domain_root == flat_team_root
+            if class_key is None and not flat:
                 failures.append(f"No class key: {video_path}")
                 continue
             try:
-                signer_id = find_signer_id(video_path, domain, domain_root)
+                angle = "unknown"
+                if flat:
+                    signer_id, angle, class_key = parse_team_filename(video_path)
+                else:
+                    signer_id = find_signer_id(video_path, domain, domain_root)
                 output_path = _output_path(
                     processed_root, domain, class_key, signer_id, video_path
                 )
@@ -170,8 +216,10 @@ def run_preprocessing(project_dir, raw_root, processed_root, domains, overwrite=
                         "domain": domain,
                         "signer_id": signer_id,
                         "source_video": str(video_path.resolve()),
+                        "camera_angle": angle,
                     }
                 )
+                print(f"Video {video_index}/{len(videos)}: {signer_id} / {WORDS[class_key]} / {angle}", flush=True)
             except (OSError, ValueError) as error:
                 failures.append(str(error))
     finally:
@@ -191,9 +239,11 @@ def main():
     parser = argparse.ArgumentParser(description="Preprocess all videos with one MediaPipe pipeline")
     parser.add_argument("--project-dir", type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument("--raw-root", type=Path, default=Path("data/raw_videos"))
-    parser.add_argument("--processed-root", type=Path, default=Path("data/processed"))
+    # parser.add_argument("--processed-root", type=Path, default=Path("data/processed"))
+    parser.add_argument("--processed-root", type=Path, default=Path("data/processed_five"))
     parser.add_argument("--domain", choices=DOMAINS, action="append")
     parser.add_argument("--overwrite", action="store_true")
+    parser.add_argument("--flat-team-root", type=Path)
     args = parser.parse_args()
     domains = tuple(args.domain or DOMAINS)
     processed, failed = run_preprocessing(
@@ -202,6 +252,7 @@ def main():
         args.processed_root.resolve(),
         domains,
         args.overwrite,
+        args.flat_team_root.resolve() if args.flat_team_root else None,
     )
     print(f"Processed {processed} videos. Failed {failed}.")
 

@@ -1,0 +1,33 @@
+{
+  "held_out_signer": "박세준",
+  "validation_signer": "김정우",
+  "seed": 42,
+  "counts": {
+    "stage0": 270,
+    "expert_train": 225,
+    "adapt_train": 270,
+    "validation": 25,
+    "team_validation": 15,
+    "held_out": 15,
+    "external": 0
+  },
+  "training_signers": [
+    "김건우",
+    "노태권",
+    "백인원"
+  ],
+  "label_map": {
+    "WORD1152": 0,
+    "WORD2100": 1,
+    "WORD2577": 2,
+    "WORD1592": 3,
+    "WORD1528": 4
+  },
+  "words": {
+    "WORD1152": "아프다",
+    "WORD2100": "위",
+    "WORD2577": "아래",
+    "WORD1592": "회사",
+    "WORD1528": "엄마"
+  }
+}

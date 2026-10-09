@@ -13,7 +13,8 @@ class SignLanguageModelTest(unittest.TestCase):
 
         logits, attention = model(inputs, return_attention=True)
 
-        self.assertEqual(logits.shape, (2, 73))
+        # self.assertEqual(logits.shape, (2, 73))
+        self.assertEqual(logits.shape, (2, 5))
         self.assertEqual(attention.shape, (2, 30))
         torch.testing.assert_close(attention.sum(dim=1), torch.ones(2))
 

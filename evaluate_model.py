@@ -36,19 +36,34 @@ def evaluate(model, samples, device, batch_size):
     labels = np.concatenate(labels)
     top5 = np.concatenate(top5)
     predictions = top5[:, 0]
-    return {
+    result = {
         "samples": int(len(labels)),
         "top1_accuracy": float(np.mean(predictions == labels)),
         "top3_accuracy": float(np.mean([label in row[:3] for label, row in zip(labels, top5)])),
         "top5_accuracy": float(np.mean([label in row for label, row in zip(labels, top5)])),
         "macro_f1": macro_f1(labels, predictions, model.config["num_classes"]),
     }
+    confusion = np.zeros((model.config["num_classes"], model.config["num_classes"]), dtype=int)
+    np.add.at(confusion, (labels, predictions), 1)
+    result["confusion_matrix"] = confusion.tolist()
+    result["per_class"] = {
+        str(label): {"samples": int(np.sum(labels == label)),
+                     "correct": int(np.sum((labels == label) & (predictions == label)))}
+        for label in sorted(set(labels.tolist()))
+    }
+    result["predictions"] = [
+        {"source_sequence": str(sample.path), "true_label": int(label),
+         "predicted_label": int(prediction), "top3": row[:3].tolist()}
+        for sample, label, prediction, row in zip(samples, labels, predictions, top5)
+    ]
+    return result
 
 
 def main():
     parser = argparse.ArgumentParser(description="Evaluate a LOSO checkpoint")
     parser.add_argument("--checkpoint", type=Path, required=True)
-    parser.add_argument("--manifest", type=Path, default=Path("data/processed/manifest.csv"))
+    # parser.add_argument("--manifest", type=Path, default=Path("data/processed/manifest.csv"))
+    parser.add_argument("--manifest", type=Path, default=Path("data/processed_five/manifest.csv"))
     parser.add_argument("--held-out-signer")
     parser.add_argument("--output", type=Path)
     parser.add_argument("--batch-size", type=int, default=64)
@@ -70,13 +85,18 @@ def main():
     ]
     external = [sample for sample in samples if sample.domain == "external"]
     report = {
+        "checkpoint": str(args.checkpoint.resolve()),
+        "word_dictionary": checkpoint.get("word_dictionary", {}),
+        "label_map": checkpoint.get("label_map", {}),
         "held_out_signer": held_out_signer,
         "held_out_team": evaluate(model, held_out, device, args.batch_size),
         "external_fixed_test": evaluate(model, external, device, args.batch_size),
     }
     output_path = args.output or args.checkpoint.with_name("evaluation.json")
     output_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(json.dumps(report, ensure_ascii=False, indent=2))
+    print(json.dumps({key: ({k: v for k, v in value.items() if k != "predictions"}
+                           if key in {"held_out_team", "external_fixed_test"} and value else value)
+                      for key, value in report.items()}, ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":

@@ -1,0 +1,237 @@
+{
+  "checkpoint": "/Users/sejun/Exp/Python/SignBridge/signbridge_model_demo/five_word_work/models/sign_language_five_words.pth",
+  "word_dictionary": {
+    "WORD1152": "아프다",
+    "WORD2100": "위",
+    "WORD2577": "아래",
+    "WORD1592": "회사",
+    "WORD1528": "엄마"
+  },
+  "label_map": {
+    "WORD1152": 0,
+    "WORD2100": 1,
+    "WORD2577": 2,
+    "WORD1592": 3,
+    "WORD1528": 4
+  },
+  "held_out_signer": "박세준",
+  "held_out_team": {
+    "samples": 15,
+    "top1_accuracy": 0.6,
+    "top3_accuracy": 1.0,
+    "top5_accuracy": 1.0,
+    "macro_f1": 0.5599999999999999,
+    "confusion_matrix": [
+      [
+        3,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      [
+        2,
+        1,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        1,
+        0,
+        2,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        3
+      ]
+    ],
+    "per_class": {
+      "0": {
+        "samples": 3,
+        "correct": 3
+      },
+      "1": {
+        "samples": 3,
+        "correct": 1
+      },
+      "2": {
+        "samples": 3,
+        "correct": 0
+      },
+      "3": {
+        "samples": 3,
+        "correct": 2
+      },
+      "4": {
+        "samples": 3,
+        "correct": 3
+      }
+    },
+    "predictions": [
+      {
+        "source_sequence": "/Users/sejun/Exp/Python/SignBridge/signbridge_model_demo/five_word_work/data/processed_five/sequences/team/WORD1152/박세준/41e189eb5afb.npz",
+        "true_label": 0,
+        "predicted_label": 0,
+        "top3": [
+          0,
+          2,
+          4
+        ]
+      },
+      {
+        "source_sequence": "/Users/sejun/Exp/Python/SignBridge/signbridge_model_demo/five_word_work/data/processed_five/sequences/team/WORD1152/박세준/49de20a3fd97.npz",
+        "true_label": 0,
+        "predicted_label": 0,
+        "top3": [
+          0,
+          2,
+          3
+        ]
+      },
+      {
+        "source_sequence": "/Users/sejun/Exp/Python/SignBridge/signbridge_model_demo/five_word_work/data/processed_five/sequences/team/WORD1152/박세준/4af49c00f7cd.npz",
+        "true_label": 0,
+        "predicted_label": 0,
+        "top3": [
+          0,
+          2,
+          4
+        ]
+      },
+      {
+        "source_sequence": "/Users/sejun/Exp/Python/SignBridge/signbridge_model_demo/five_word_work/data/processed_five/sequences/team/WORD2100/박세준/037c14634818.npz",
+        "true_label": 1,
+        "predicted_label": 2,
+        "top3": [
+          2,
+          1,
+          0
+        ]
+      },
+      {
+        "source_sequence": "/Users/sejun/Exp/Python/SignBridge/signbridge_model_demo/five_word_work/data/processed_five/sequences/team/WORD2100/박세준/38158bf3b86c.npz",
+        "true_label": 1,
+        "predicted_label": 0,
+        "top3": [
+          0,
+          2,
+          1
+        ]
+      },
+      {
+        "source_sequence": "/Users/sejun/Exp/Python/SignBridge/signbridge_model_demo/five_word_work/data/processed_five/sequences/team/WORD2100/박세준/d83ee3ad237d.npz",
+        "true_label": 1,
+        "predicted_label": 1,
+        "top3": [
+          1,
+          2,
+          0
+        ]
+      },
+      {
+        "source_sequence": "/Users/sejun/Exp/Python/SignBridge/signbridge_model_demo/five_word_work/data/processed_five/sequences/team/WORD2577/박세준/4ded564d7922.npz",
+        "true_label": 2,
+        "predicted_label": 0,
+        "top3": [
+          0,
+          2,
+          4
+        ]
+      },
+      {
+        "source_sequence": "/Users/sejun/Exp/Python/SignBridge/signbridge_model_demo/five_word_work/data/processed_five/sequences/team/WORD2577/박세준/a878dc349fbf.npz",
+        "true_label": 2,
+        "predicted_label": 0,
+        "top3": [
+          0,
+          2,
+          4
+        ]
+      },
+      {
+        "source_sequence": "/Users/sejun/Exp/Python/SignBridge/signbridge_model_demo/five_word_work/data/processed_five/sequences/team/WORD2577/박세준/e666390fa2a3.npz",
+        "true_label": 2,
+        "predicted_label": 1,
+        "top3": [
+          1,
+          2,
+          0
+        ]
+      },
+      {
+        "source_sequence": "/Users/sejun/Exp/Python/SignBridge/signbridge_model_demo/five_word_work/data/processed_five/sequences/team/WORD1592/박세준/13e76da8c65e.npz",
+        "true_label": 3,
+        "predicted_label": 1,
+        "top3": [
+          1,
+          3,
+          2
+        ]
+      },
+      {
+        "source_sequence": "/Users/sejun/Exp/Python/SignBridge/signbridge_model_demo/five_word_work/data/processed_five/sequences/team/WORD1592/박세준/18504a8bc699.npz",
+        "true_label": 3,
+        "predicted_label": 3,
+        "top3": [
+          3,
+          2,
+          1
+        ]
+      },
+      {
+        "source_sequence": "/Users/sejun/Exp/Python/SignBridge/signbridge_model_demo/five_word_work/data/processed_five/sequences/team/WORD1592/박세준/9e64425c6270.npz",
+        "true_label": 3,
+        "predicted_label": 3,
+        "top3": [
+          3,
+          4,
+          2
+        ]
+      },
+      {
+        "source_sequence": "/Users/sejun/Exp/Python/SignBridge/signbridge_model_demo/five_word_work/data/processed_five/sequences/team/WORD1528/박세준/258475a97df3.npz",
+        "true_label": 4,
+        "predicted_label": 4,
+        "top3": [
+          4,
+          0,
+          2
+        ]
+      },
+      {
+        "source_sequence": "/Users/sejun/Exp/Python/SignBridge/signbridge_model_demo/five_word_work/data/processed_five/sequences/team/WORD1528/박세준/4b1a287d74b9.npz",
+        "true_label": 4,
+        "predicted_label": 4,
+        "top3": [
+          4,
+          0,
+          2
+        ]
+      },
+      {
+        "source_sequence": "/Users/sejun/Exp/Python/SignBridge/signbridge_model_demo/five_word_work/data/processed_five/sequences/team/WORD1528/박세준/5f031bb432da.npz",
+        "true_label": 4,
+        "predicted_label": 4,
+        "top3": [
+          4,
+          3,
+          2
+        ]
+      }
+    ]
+  },
+  "external_fixed_test": null
+}

@@ -1,5 +1,30 @@
 # SignBridge training pipeline
 
+현재 실행 설정은 **아프다, 위, 아래, 회사, 엄마** 5단어입니다. 기존 73단어 설정과 메뉴 코드는 주석으로 보존했고 원본 데이터·모델도 유지합니다.
+
+실행 결과와 데이터 분할은 [RUN_RESULTS.md](RUN_RESULTS.md)를 참고하세요. 최종 모델은 독립 촬영자 영상 15개에서 Top-1 60.0%, Top-3 100.0%이며, 위/아래 혼동이 남아 있습니다.
+
+친구에게 전달할 파일과 앱 연동 입력/출력 계약은 [HANDOFF.md](HANDOFF.md)에 정리했습니다. 새 5단어 가중치는 Git에서 제외되므로 별도로 받아야 합니다.
+
+모델 출력은 5개입니다. 미검출/대기는 6번째 학습 클래스가 아니라 기존 `RecognitionGate`의 `NO_SIGN` 상태로 처리합니다. 별도 비수어 동작 영상이나 배경 클래스는 현재 학습에 포함하지 않습니다.
+
+게이트는 손 미검출이 연속 5프레임일 때 버퍼를 초기화합니다. 손이 보이면 정지/대기 동작도 30프레임 창의 입력이 될 수 있으므로, 모든 비수어 동작을 구분해 무시하는 기능은 아닙니다. 짧은 미검출 1~4프레임 동안에는 기존 창의 예측이 이어질 수 있습니다.
+
+```bash
+python prepare_five_word_data.py --raw-mov ~/Downloads/raw_mov
+python train_pipeline.py --held-out-signer 박세준 --validation-signer 김정우 --batch-size 32 --stage0-epochs 20 --stage1-epochs 40 --stage2-epochs 15 --stage3-epochs 30 --output-dir models/five_words_loso --export-path models/sign_language_five_words.pth
+python evaluate_model.py --checkpoint models/sign_language_five_words.pth
+python handsign_translate.py
+```
+
+`modules/vocabulary.py`에서 0=아프다, 1=위, 2=아래, 3=회사, 4=엄마로 정의합니다. 원본 73클래스 NPY에서 해당 WORD 키의 전문가 250개만 추출하여 라벨을 다시 부여합니다. 팀 영상은 `촬영자_단어` 또는 `촬영자_각도_단어`로 해석합니다. 클래스당 15개, 총 75개이며 각도가 생략되면 정면입니다. 각도의 위/아래와 단어의 위/아래는 파일명 항목 수로 구분합니다.
+
+현재 분할은 전문가 225개 학습/25개 검증, 팀원 3명 45개 학습/김정우 15개 검증/박세준 15개 최종 테스트입니다. Stage 2·3은 전문가 검증 정확도와 팀원 검증 정확도의 평균으로 모델을 선택하며 최종 테스트 사람은 자기지도 학습에도 넣지 않습니다. 새 모델은 `models/sign_language_five_words.pth`, 처리 데이터는 `data/processed_five`에 따로 저장합니다. 실시간 UI는 5단어를 바로 인식하고 ESC는 인식 상태를 초기화합니다.
+
+전문가 원본 영상 없이 기존 150차원 NPY를 변환하므로, 전문가와 새 영상의 관절 추출 방식이 완전히 일치한다고 보장할 수 없습니다. 또 영상 전체를 30프레임으로 리샘플링하는 학습/평가와 웹캠의 30프레임 이동 창은 시간 구간이 다릅니다. 저장 영상 테스트 결과를 실제 웹캠 정확도로 해석해서는 안 됩니다.
+
+아래는 기존 73단어 파이프라인 설명으로, 이전 설정을 확인할 수 있도록 보존했습니다.
+
 이 저장소는 73개 한국수어 단어를 대상으로 전문가 영상과 팀원 영상을 같은 MediaPipe 파이프라인으로 전처리하고, 수어자 독립 모델을 학습하고 평가합니다.
 
 ## 데이터 구조

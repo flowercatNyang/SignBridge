@@ -8,7 +8,7 @@ import numpy as np
 import torch
 
 from modules.features import extract_keypoints
-from modules.preprocessing import create_landmarkers
+from modules.preprocessing import create_landmarkers, resize_for_detection
 from modules.realtime import RecognitionGate
 from modules.utils import MockResults, load_models_and_maps, put_korean_text
 
@@ -70,7 +70,8 @@ def main():
     parser = argparse.ArgumentParser(description="Real-time KSL recognition")
     parser.add_argument(
         "--checkpoint",
-        default=os.path.join(BASE_DIR, "models", "sign_language_gru.pth"),
+        # default=os.path.join(BASE_DIR, "models", "sign_language_gru.pth"),
+        default=os.path.join(BASE_DIR, "models", "sign_language_five_words.pth"),
     )
     parser.add_argument("--camera", type=int, default=0)
     parser.add_argument("--confidence", type=float, default=0.7)
@@ -95,8 +96,10 @@ def main():
         print("Error: Unable to access webcam.")
         return
 
-    app_state = "MENU"
-    current_category = None
+    # app_state = "MENU"
+    # current_category = None
+    app_state = "TRANSLATE"
+    current_category = categories[0]
     top3_predictions = [("Waiting...", 0.0)] * 3
     confirmed_word = None
     selected_sentence = []
@@ -115,7 +118,8 @@ def main():
             if frame_count % args.frame_skip == 0:
                 image = mp.Image(
                     image_format=mp.ImageFormat.SRGB,
-                    data=cv2.cvtColor(frame, cv2.COLOR_BGR2RGB),
+                    # data=cv2.cvtColor(frame, cv2.COLOR_BGR2RGB),
+                    data=cv2.cvtColor(resize_for_detection(frame), cv2.COLOR_BGR2RGB),
                 )
                 last_results = MockResults(pose.detect(image), hands.detect(image))
                 features, hand_mask = extract_keypoints(
@@ -187,7 +191,8 @@ def main():
                         (255, 255, 255),
                     )
             else:
-                status = f"Category: {current_category['name']} (ESC: Menu)"
+                # status = f"Category: {current_category['name']} (ESC: Menu)"
+                status = f"{current_category['name']} (ESC: Reset)"
                 display_frame = put_korean_text(
                     display_frame, status, (20, 20), 34, (0, 255, 255)
                 )
@@ -214,8 +219,10 @@ def main():
             if key == ord("q"):
                 break
             if key == 27 and app_state == "TRANSLATE":
-                app_state = "MENU"
-                current_category = None
+                # app_state = "MENU"
+                # current_category = None
+                app_state = "TRANSLATE"
+                current_category = categories[0]
                 confirmed_word = None
                 selected_sentence.clear()
                 gate.reset()
