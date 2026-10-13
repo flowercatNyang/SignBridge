@@ -20,11 +20,12 @@ void main() {
           .setMockMethodCallHandler(channel, null));
       await tester.pumpWidget(const SignBridgeApp());
       expect(find.text('테스트: ${entry.key}'), findsNothing);
+      final predict =
+          tester.widget<HandCamera>(find.byType(HandCamera)).onPrediction!;
       await tester.tap(find.byType(Switch));
       await tester.pumpAndSettle();
       expect(calls, isEmpty);
-      final predict =
-          tester.widget<HandCamera>(find.byType(HandCamera)).onPrediction!;
+      expect(find.byType(HandCamera), findsNothing);
       predict(SignPrediction(entry.key, .99));
       await tester.pumpAndSettle();
       expect(calls, isEmpty);
@@ -80,14 +81,15 @@ void main() {
       expect(tester.takeException(), isNull);
     }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
   }
-  testWidgets('Menu contains only shortcut execution', (tester) async {
+  testWidgets('Menu contains shortcuts and the LLM assistant', (tester) async {
     await tester.pumpWidget(const SignBridgeApp());
     await tester.tap(find.byTooltip('메뉴'));
     await tester.pumpAndSettle();
     expect(
         find.descendant(
             of: find.byType(Drawer), matching: find.byType(ListTile)),
-        findsOneWidget);
+        findsNWidgets(2));
+    expect(find.text('LLM 비서'), findsOneWidget);
     expect(find.byType(BottomNavigationBar), findsNothing);
     for (final text in ['기기', '기록', '설정', '서비스 안내']) {
       expect(find.text(text), findsNothing);

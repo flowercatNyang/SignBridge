@@ -4,6 +4,8 @@ import 'actions.dart';
 import 'design.dart';
 import 'hand_camera/hand_camera.dart';
 import 'sign_commands.dart';
+import 'assistant_page.dart';
+import 'gloss_test_panel.dart';
 
 class TranslationPage extends StatefulWidget {
   const TranslationPage({Key? key}) : super(key: key);
@@ -15,8 +17,9 @@ class _TranslationPageState extends State<TranslationPage>
     with WidgetsBindingObserver {
   final _gate = CommandGate();
   final _actions = DeviceActions();
+  final _developerGloss = <String>[];
   String _status = '인식 대기 중', _translation = '';
-  bool _busy = false, _foreground = true, _developerMode = false;
+  bool _busy = false, _foreground = true, _developerMode = false, _assistantOpen = false;
   @override
   void initState() {
     super.initState();
@@ -40,7 +43,7 @@ class _TranslationPageState extends State<TranslationPage>
   }
 
   void _prediction(SignPrediction prediction) {
-    if (_developerMode ||
+    if (_assistantOpen || _developerMode ||
         _busy ||
         !_foreground ||
         ModalRoute.of(context)?.isCurrent != true) {
@@ -79,6 +82,20 @@ class _TranslationPageState extends State<TranslationPage>
       _translation = '';
       _status = _developerMode ? '테스트할 단어를 눌러 주세요.' : '새 동작을 보여 주세요.';
     });
+  }
+
+  Future<void> _openAssistant({bool fromDrawer = true, String initialGloss = '',
+    bool developerMode = false}) async {
+    if (_busy || _assistantOpen) return;
+    if (fromDrawer) Navigator.pop(context);
+    setState(() {
+      _assistantOpen = true;
+      _gate.reset();
+    });
+    await Navigator.push<void>(context,
+        MaterialPageRoute(builder: (_) => AssistantPage(
+            initialGloss: initialGloss, developerMode: developerMode)));
+    if (mounted) setState(() => _assistantOpen = false);
   }
 
   Future<void> _execute(String command) async {
@@ -132,6 +149,10 @@ class _TranslationPageState extends State<TranslationPage>
               leading: const Icon(Icons.apps),
               title: const Text('단축키 실행'),
               onTap: () => Navigator.pop(context)),
+          ListTile(
+              leading: const Icon(Icons.chat),
+              title: const Text('LLM 비서'),
+              onTap: _busy ? null : () => _openAssistant()),
         ]))),
         body: SafeArea(
             child: Center(
@@ -148,6 +169,7 @@ class _TranslationPageState extends State<TranslationPage>
                   ? null
                   : (value) => setState(() {
                         _developerMode = value;
+                        _developerGloss.clear();
                         _gate.reset();
                         _translation = '';
                         _status = value ? '테스트할 단어를 눌러 주세요.' : '인식 대기 중';
@@ -164,9 +186,18 @@ class _TranslationPageState extends State<TranslationPage>
                       child: Text('테스트: $word'),
                     )),
               ]),
+              gap,
+              GlossTestPanel(text: _developerGloss.join(' '),
+                disabled: _busy || !_foreground,
+                onWord: (word) => setState(() => _developerGloss.add(word)),
+                onUndo: () => setState(() => _developerGloss.removeLast()),
+                onClear: () => setState(() => _developerGloss.clear()),
+                onSubmit: () => _openAssistant(fromDrawer: false,
+                    initialGloss: _developerGloss.join(' '), developerMode: true)),
             ],
             gap,
-            SizedBox(height: 300, child: HandCamera(onPrediction: _prediction)),
+            if (!_assistantOpen && !_developerMode)
+              SizedBox(height: 300, child: HandCamera(onPrediction: _prediction)),
             gap,
             Text(_translation.isEmpty ? '수어를 보여 주세요.' : '번역: $_translation',
                 textAlign: TextAlign.center,
