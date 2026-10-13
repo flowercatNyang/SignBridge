@@ -1,6 +1,6 @@
 # Sejun 브랜치 통합 안내
 
-`main`의 Python 모델 프로젝트와 `SexyInwon`의 Flutter 앱을 통합했습니다. 현재 앱 동작은 기존 5단어 단축키이며, 수리 접수 MVP는 이 통합에 포함되지 않습니다.
+`main`의 Python 모델 프로젝트와 `SexyInwon`의 Flutter 앱을 통합했습니다. 통합 이후 LLM 비서 메뉴를 추가했으며 설정은 [LLM 비서 안내](ASSISTANT.md)를 참고하세요. 수리 접수 MVP는 아직 포함되지 않습니다.
 
 ## 작업 위치
 

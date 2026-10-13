@@ -44,6 +44,8 @@ python apps/webcam/handsign_translate.py
 
 ## Flutter 앱 실행
 
+LLM 번역·추가 질문·Android 알람/문자 작성 기능을 추가했습니다. 키 입력 위치와 실행 방법은 [LLM 비서 안내](docs/ASSISTANT.md)를 참고하세요. NVIDIA API 키는 `backend/.env`에 입력하며 앱에 넣지 않습니다.
+
 앱 작업 디렉터리는 `apps/mobile/`입니다. 기존 앱은 Flutter 2.8 / Dart 2.15 기준이며 iOS 네이티브 동작은 구현되어 있지 않습니다.
 
 ```bash
@@ -54,7 +56,7 @@ flutter test
 flutter run -d chrome
 ```
 
-Android 빌드와 기능 설명은 [앱 README](apps/mobile/README.md)를 참고하세요. 모델·라벨·전처리 연결 및 검증 절차는 [통합 안내](docs/INTEGRATION.md)에 정리했습니다. 현재 앱 기능은 기존 단축키 실행이며, 논의 중인 수리 접수 기능은 아직 구현하지 않았습니다.
+Android 빌드와 기능 설명은 [앱 README](apps/mobile/README.md)를 참고하세요. 모델·라벨·전처리 연결 및 검증 절차는 [통합 안내](docs/INTEGRATION.md)에 정리했습니다. 수리 접수 기능은 아직 구현하지 않았습니다.
 
 ## 데이터 → 학습 → 평가
 
