@@ -1,6 +1,10 @@
 import argparse
 import json
 from pathlib import Path
+import sys
+
+# Support direct execution from any working directory.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import torch
 import torch.nn as nn
@@ -17,6 +21,7 @@ from modules.data import (
 from modules.features import INPUT_DIM
 from modules.models import MaskedSequenceAutoencoder, SignLanguageModel, SignerClassifier
 from modules.vocabulary import LABEL_MAP, NUM_CLASSES, WORDS
+from modules.paths import DATA_DIR, MODEL_DIR, REPORT_DIR
 
 
 def mask_inputs(inputs, ratio):
@@ -202,10 +207,11 @@ def save_final_checkpoint(path, model, held_out_signer, signer_map):
 def main():
     parser = argparse.ArgumentParser(description="Four-stage LOSO sign-language training")
     # parser.add_argument("--manifest", type=Path, default=Path("data/processed/manifest.csv"))
-    parser.add_argument("--manifest", type=Path, default=Path("data/processed_five/manifest.csv"))
+    parser.add_argument("--manifest", type=Path, default=DATA_DIR / "processed_five" / "manifest.csv")
     parser.add_argument("--held-out-signer", required=True)
     parser.add_argument("--validation-signer", required=True)
     parser.add_argument("--output-dir", type=Path)
+    parser.add_argument("--report-dir", type=Path)
     parser.add_argument("--export-path", type=Path)
     parser.add_argument("--batch-size", type=int, default=64)
     parser.add_argument("--workers", type=int, default=0)
@@ -230,8 +236,10 @@ def main():
                              validation_signer=args.validation_signer)
     signer_map = build_signer_map(splits["stage0"])
 
-    output_dir = args.output_dir or Path("models") / f"loso_{args.held_out_signer}"
+    output_dir = args.output_dir or MODEL_DIR / f"loso_{args.held_out_signer}"
     output_dir.mkdir(parents=True, exist_ok=True)
+    report_dir = args.report_dir or REPORT_DIR / output_dir.name
+    report_dir.mkdir(parents=True, exist_ok=True)
 
     datasets = {
         name: KSLDataset(rows, signer_map)
@@ -329,9 +337,9 @@ def main():
     if args.export_path:
         args.export_path.parent.mkdir(parents=True, exist_ok=True)
         save_final_checkpoint(args.export_path, model, args.held_out_signer, signer_map)
-    with (output_dir / "training_history.json").open("w", encoding="utf-8") as handle:
+    with (report_dir / "training_history.json").open("w", encoding="utf-8") as handle:
         json.dump(history, handle, ensure_ascii=False, indent=2)
-    with (output_dir / "split_summary.json").open("w", encoding="utf-8") as handle:
+    with (report_dir / "split_summary.json").open("w", encoding="utf-8") as handle:
         json.dump({"held_out_signer": args.held_out_signer,
                    "validation_signer": args.validation_signer,
                    "seed": args.seed,

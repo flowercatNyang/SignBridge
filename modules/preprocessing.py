@@ -14,6 +14,7 @@ import numpy as np
 from .features import build_temporal_features, extract_keypoints
 from .utils import MockResults
 from .vocabulary import EXPECTED_PER_CLASS, LABEL_MAP, NUM_CLASSES, WORDS
+from .paths import DATA_DIR, PROJECT_ROOT
 
 
 VIDEO_EXTENSIONS = {".mp4", ".avi", ".mov", ".mkv", ".webm"}
@@ -23,10 +24,11 @@ DOMAINS = ("expert", "team", "external")
 
 def create_landmarkers(project_dir):
     project_dir = Path(project_dir)
+    asset_dir = project_dir / "assets" / "mediapipe"
     base_options = mp.tasks.BaseOptions
     running_mode = mp.tasks.vision.RunningMode
     hand_options = mp.tasks.vision.HandLandmarkerOptions(
-        base_options=base_options(model_asset_path=str(project_dir / "hand_landmarker.task")),
+        base_options=base_options(model_asset_path=str(asset_dir / "hand_landmarker.task")),
         running_mode=running_mode.IMAGE,
         num_hands=2,
         min_hand_detection_confidence=0.5,
@@ -34,7 +36,7 @@ def create_landmarkers(project_dir):
         min_tracking_confidence=0.5,
     )
     pose_options = mp.tasks.vision.PoseLandmarkerOptions(
-        base_options=base_options(model_asset_path=str(project_dir / "pose_landmarker_lite.task")),
+        base_options=base_options(model_asset_path=str(asset_dir / "pose_landmarker_lite.task")),
         running_mode=running_mode.IMAGE,
         min_pose_detection_confidence=0.5,
         min_pose_presence_confidence=0.5,
@@ -237,10 +239,10 @@ def run_preprocessing(project_dir, raw_root, processed_root, domains, overwrite=
 
 def main():
     parser = argparse.ArgumentParser(description="Preprocess all videos with one MediaPipe pipeline")
-    parser.add_argument("--project-dir", type=Path, default=Path(__file__).resolve().parents[1])
-    parser.add_argument("--raw-root", type=Path, default=Path("data/raw_videos"))
+    parser.add_argument("--project-dir", type=Path, default=PROJECT_ROOT)
+    parser.add_argument("--raw-root", type=Path, default=DATA_DIR / "raw_videos")
     # parser.add_argument("--processed-root", type=Path, default=Path("data/processed"))
-    parser.add_argument("--processed-root", type=Path, default=Path("data/processed_five"))
+    parser.add_argument("--processed-root", type=Path, default=DATA_DIR / "processed_five")
     parser.add_argument("--domain", choices=DOMAINS, action="append")
     parser.add_argument("--overwrite", action="store_true")
     parser.add_argument("--flat-team-root", type=Path)

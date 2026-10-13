@@ -29,4 +29,4 @@
 
 5클래스에서 Top-5는 항상 100%이므로 성능 지표로 의미가 없습니다. 테스트는 단 한 명의 저장 영상으로 진행했으며 웹캠 이동 창이나 배경 동작에 대한 정확도는 측정하지 않았습니다. 전문가 원본 영상 없이 기존 150차원 NPY를 변환했으므로 관절 추출 방식의 도메인 차이가 남을 수 있습니다. 일부 팀 영상에 미검출 구간도 존재합니다(`data/processed_five/dataset_summary.json`).
 
-상세 예측/혼동행렬은 `models/five_words_loso/evaluation.json`, 단계별 학습 기록은 `models/five_words_loso/training_history.json`, 분할은 `models/five_words_loso/split_summary.json`에 저장했습니다.
+상세 예측/혼동행렬은 `reports/five_words_loso/evaluation.json`, 단계별 학습 기록은 `reports/five_words_loso/training_history.json`, 분할은 `reports/five_words_loso/split_summary.json`에 저장했습니다.

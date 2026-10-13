@@ -1,124 +1,86 @@
-# SignBridge training pipeline
+# SignBridge
 
-현재 실행 설정은 **아프다, 위, 아래, 회사, 엄마** 5단어입니다. 기존 73단어 설정과 메뉴 코드는 주석으로 보존했고 원본 데이터·모델도 유지합니다.
+MediaPipe 관절 특징과 경량 1D-CNN·GRU를 이용한 한국수어 단어 인식 프로젝트입니다. 현재 대상은 **아프다, 위, 아래, 회사, 엄마** 5단어입니다.
 
-실행 결과와 데이터 분할은 [RUN_RESULTS.md](RUN_RESULTS.md)를 참고하세요. 최종 모델은 독립 촬영자 영상 15개에서 Top-1 60.0%, Top-3 100.0%이며, 위/아래 혼동이 남아 있습니다.
+## 저장소 구조
 
-친구에게 전달할 파일과 앱 연동 입력/출력 계약은 [HANDOFF.md](HANDOFF.md)에 정리했습니다. 새 5단어 가중치는 Git에서 제외되므로 별도로 받아야 합니다.
+```text
+SignBridge/
+├── apps/webcam/          # 웹캠 실시간 인식 데모
+├── scripts/
+│   ├── data/            # 데이터 선택, 변환, 영상 전처리, 품질 확인
+│   ├── training/        # 4단계 모델 학습
+│   └── evaluation/      # 독립 촬영자 평가
+├── modules/             # 공용 모델·특징·데이터·게이트·경로 정의
+├── assets/mediapipe/     # 손/상체 추출용 .task 모델
+├── data/                # 원본/전처리 데이터 (Git 제외)
+├── models/              # 학습된 .pth 가중치
+├── reports/             # 학습 기록, 데이터 분할, 평가 결과 JSON
+├── notebooks/           # 전처리·학습·평가 실행용 노트북
+├── docs/                # 앱 인수인계, 실험 결과, 이전 파이프라인 설명
+├── tools/               # 전달용 ZIP 생성 등 개발 보조 도구
+├── tests/               # 모델·특징·샘플러·실시간 게이트 테스트
+├── requirements.txt
+└── README.md
+```
 
-모델 출력은 5개입니다. 미검출/대기는 6번째 학습 클래스가 아니라 기존 `RecognitionGate`의 `NO_SIGN` 상태로 처리합니다. 별도 비수어 동작 영상이나 배경 클래스는 현재 학습에 포함하지 않습니다.
+공용 Python 코드는 기존 `modules` 패키지를 유지합니다. 파일 이동은 모델 구조나 입력/출력 라벨을 바꾸지 않습니다. 경로 기준은 `modules/paths.py`로 통일했으며, 기본 데이터·모델·자산 위치는 실행한 터미널 위치와 관계없이 저장소 루트를 기준으로 찾습니다.
 
-게이트는 손 미검출이 연속 5프레임일 때 버퍼를 초기화합니다. 손이 보이면 정지/대기 동작도 30프레임 창의 입력이 될 수 있으므로, 모든 비수어 동작을 구분해 무시하는 기능은 아닙니다. 짧은 미검출 1~4프레임 동안에는 기존 창의 예측이 이어질 수 있습니다.
+## 설치와 웹캠 실행
+
+저장소 루트에서 실행합니다.
 
 ```bash
-python prepare_five_word_data.py --raw-mov ~/Downloads/raw_mov
-python train_pipeline.py --held-out-signer 박세준 --validation-signer 김정우 --batch-size 32 --stage0-epochs 20 --stage1-epochs 40 --stage2-epochs 15 --stage3-epochs 30 --output-dir models/five_words_loso --export-path models/sign_language_five_words.pth
-python evaluate_model.py --checkpoint models/sign_language_five_words.pth
-python handsign_translate.py
-```
-
-`modules/vocabulary.py`에서 0=아프다, 1=위, 2=아래, 3=회사, 4=엄마로 정의합니다. 원본 73클래스 NPY에서 해당 WORD 키의 전문가 250개만 추출하여 라벨을 다시 부여합니다. 팀 영상은 `촬영자_단어` 또는 `촬영자_각도_단어`로 해석합니다. 클래스당 15개, 총 75개이며 각도가 생략되면 정면입니다. 각도의 위/아래와 단어의 위/아래는 파일명 항목 수로 구분합니다.
-
-현재 분할은 전문가 225개 학습/25개 검증, 팀원 3명 45개 학습/김정우 15개 검증/박세준 15개 최종 테스트입니다. Stage 2·3은 전문가 검증 정확도와 팀원 검증 정확도의 평균으로 모델을 선택하며 최종 테스트 사람은 자기지도 학습에도 넣지 않습니다. 새 모델은 `models/sign_language_five_words.pth`, 처리 데이터는 `data/processed_five`에 따로 저장합니다. 실시간 UI는 5단어를 바로 인식하고 ESC는 인식 상태를 초기화합니다.
-
-전문가 원본 영상 없이 기존 150차원 NPY를 변환하므로, 전문가와 새 영상의 관절 추출 방식이 완전히 일치한다고 보장할 수 없습니다. 또 영상 전체를 30프레임으로 리샘플링하는 학습/평가와 웹캠의 30프레임 이동 창은 시간 구간이 다릅니다. 저장 영상 테스트 결과를 실제 웹캠 정확도로 해석해서는 안 됩니다.
-
-아래는 기존 73단어 파이프라인 설명으로, 이전 설정을 확인할 수 있도록 보존했습니다.
-
-이 저장소는 73개 한국수어 단어를 대상으로 전문가 영상과 팀원 영상을 같은 MediaPipe 파이프라인으로 전처리하고, 수어자 독립 모델을 학습하고 평가합니다.
-
-## 데이터 구조
-
-영상은 다음 구조로 배치합니다. 클래스 폴더명 또는 파일 경로에는 `WORD0005` 같은 `core_label_map.json`의 키가 포함되어야 합니다.
-
-```text
-data/raw_videos/
-  expert/
-    WORD0005/
-      *.mp4
-  team/
-    signer_a/
-      WORD0005/
-        *.mp4
-  external/
-    person_001/
-      WORD0005/
-        *.mp4
-```
-
-전문가 데이터는 클래스당 최소 50개, 팀원 데이터는 클래스당 최소 9개가 필요합니다. 팀원 9개를 파일로 복제하지 않습니다. Stage 2와 Stage 3의 각 배치에서 전문가와 팀원을 1:1로 뽑아 팀원 데이터를 oversampling합니다.
-
-## 특징
-
-모든 영상은 동일한 MediaPipe Hand/Pose 파이프라인을 거쳐 30프레임으로 리샘플링됩니다. 손 미검출 구간은 검출된 앞뒤 프레임으로 보간하며 원래 검출 여부는 두 개의 mask로 보존합니다.
-
-모델 입력은 프레임당 452차원입니다.
-
-```text
-150 관절 특징 + 150 속도 + 150 가속도 + 2 손 검출 mask
-```
-
-## 실행 순서
-
-필요 패키지를 설치합니다.
-
-```powershell
+python -m venv .venv
+source .venv/bin/activate
+# Windows PowerShell: .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
+python apps/webcam/handsign_translate.py
 ```
 
-전문가 데이터가 기존 `X_train.npy`, `y_train.npy` 형식이면 먼저 새 데이터 구조로 변환합니다.
+새 모델 `models/sign_language_five_words.pth`는 Git에서 제외되므로 별도로 받아야 합니다. 기존부터 GitHub에 있는 `models/sign_language_gru.pth`는 이번 5단어 모델이 아닙니다. 카메라 권한을 허용하고, 종료는 `q`, 인식 초기화는 `ESC`입니다.
 
-```powershell
-python migrate_expert_npy.py
+## 데이터 → 학습 → 평가
+
+```bash
+# 1. 기존 전문가 NPY에서 5단어 선택 + 팀 영상 전처리
+python scripts/data/prepare_five_word_data.py --raw-mov ~/Downloads/raw_mov
+
+# 2. 전처리 결과 확인
+python scripts/data/audit_five_word_data.py
+
+# 3. 촬영자 분리 4단계 학습
+python scripts/training/train_pipeline.py \
+  --held-out-signer 박세준 --validation-signer 김정우 \
+  --batch-size 32 --stage0-epochs 20 --stage1-epochs 40 \
+  --stage2-epochs 15 --stage3-epochs 30 \
+  --output-dir models/five_words_loso \
+  --report-dir reports/five_words_loso \
+  --export-path models/sign_language_five_words.pth
+
+# 4. 학습에서 제외한 촬영자 평가
+python scripts/evaluation/evaluate_model.py \
+  --checkpoint models/sign_language_five_words.pth \
+  --output reports/five_words_loso/evaluation.json
 ```
 
-기존 배열이 `(N, 30, 150)`이면 속도, 가속도, 추정 손 mask를 추가해 영상별 `(30, 452)` 파일로 변환합니다. 이미 `(N, 30, 452)`이면 값은 그대로 옮깁니다. 결과는 `data/processed/sequences/expert`와 `data/processed/manifest.csv`에 저장됩니다. 기존 전문가 manifest를 교체하려면 `--overwrite`를 명시합니다.
+전문가 배열만 변환하려면 `scripts/data/migrate_expert_npy.py`, 기존 도메인 폴더 구조의 영상을 처리하려면 `scripts/data/preprocess_videos.py`를 사용합니다. 모든 실행 스크립트는 `--help`를 지원합니다. 노트북은 `notebooks/`에서 같은 스크립트를 호출합니다.
 
-영상이 준비된 뒤 전처리를 실행합니다.
+특징은 `[30, 452]`이며 150 관절 특징 + 150 속도 + 150 가속도 + 2 손 검출 mask로 구성됩니다. 라벨은 `modules/vocabulary.py`에서 0=아프다, 1=위, 2=아래, 3=회사, 4=엄마로 정의합니다.
 
-```powershell
-python preprocess_videos.py
+전문가 자료는 클래스당 50개, 팀 영상은 클래스당 15개입니다. `촬영자_각도_단어`와 `촬영자_단어` 파일명을 처리하며 각도 생략은 정면입니다. 학습/검증/테스트 촬영자를 분리하고, 적응 학습 배치는 전문가와 팀 자료를 1:1로 구성합니다. Stage 0은 마스킹 복원, Stage 1은 전문가 분류, Stage 2는 encoder 고정 적응, Stage 3은 전체 미세조정입니다.
+
+## 실시간 동작과 결과
+
+현재 신뢰도 기준은 70%, 최근 5회 중 3회 합의입니다. `NO_SIGN/TRANSITION`은 모델 출력 클래스가 아닌 게이트 상태이며, 손 미검출이 연속 5프레임이면 버퍼를 초기화합니다. 손이 보이는 비수어 동작을 모두 거부하는 기능은 아닙니다.
+
+독립 촬영자 1명의 저장 영상 15개에서 Top-1 60%, Top-3 100%였습니다. 위/아래 혼동이 남아 있고 실제 웹캠 정확도는 측정하지 않았습니다. 자세한 과정은 [실험 결과](docs/RUN_RESULTS.md), 앱 연결 방법은 [인수인계 문서](docs/HANDOFF.md)를 참고하세요. 이전 73단어 설명은 [보존 문서](docs/legacy_pipeline.md)에 남겨 두었습니다.
+
+## 검증과 전달 자료
+
+```bash
+python -m unittest discover -s tests -v
+python tools/build_handoff.py --repo . --output dist/SignBridge_handoff.zip
 ```
 
-전문가 NPY를 이미 변환했고 팀원 영상만 새로 추가했다면 팀원 도메인만 처리합니다.
-
-```powershell
-python preprocess_videos.py --domain team
-```
-
-특정 도메인만 다시 처리할 수도 있습니다.
-
-```powershell
-python preprocess_videos.py --domain team --overwrite
-```
-
-팀원 한 명을 완전히 제외해 LOSO 학습을 실행합니다. 제외된 사람은 Stage 0 자기지도 학습에도 사용되지 않습니다.
-
-```powershell
-python train_pipeline.py --held-out-signer signer_c --export-path models/sign_language_gru.pth
-```
-
-학습 단계는 다음과 같습니다.
-
-1. Stage 0: 학습에 허용된 전체 시퀀스로 마스킹 복원
-2. Stage 1: 전문가 데이터 단어 분류
-3. Stage 2: 전문가와 팀원 1:1 배치로 classifier만 적응
-4. Stage 3: 전체 encoder를 낮은 학습률로 미세조정하고, signer ID가 있으면 gradient reversal 학습
-
-LOSO와 외부 고정 테스트를 평가합니다.
-
-```powershell
-python evaluate_model.py --checkpoint models/loso_signer_c/final.pth
-```
-
-실시간 인식을 실행합니다.
-
-```powershell
-python handsign_translate.py --checkpoint models/sign_language_gru.pth
-```
-
-실시간 인식은 `NO_SIGN`, `TRANSITION`, `SIGN` 상태와 신뢰도 임계값, 최근 예측 합의를 사용합니다. 임계값과 합의 조건은 `--confidence`, `--consensus-size`, `--consensus-required`로 조정할 수 있습니다.
-
-## 노트북
-
-`Data_Preprocessing.ipynb`, `GRU_Model_Training.ipynb`, `generate_graph.ipynb`는 위 스크립트를 순서대로 실행하는 얇은 실행용 노트북입니다. 팀원별 LOSO 결과를 비교하려면 팀원마다 `--held-out-signer`를 바꾸어 별도 출력 폴더에 학습합니다.
+전달용 ZIP은 추론 코드·새 모델·MediaPipe 자산·설명을 포함하며 원본 영상과 학습 데이터를 포함하지 않습니다. `data/`, 새 `*.pth`, 가상환경, 캐시, `dist/`는 Git에서 제외됩니다.

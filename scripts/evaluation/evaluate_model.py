@@ -1,6 +1,10 @@
 import argparse
 import json
 from pathlib import Path
+import sys
+
+# Support direct execution from any working directory.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import numpy as np
 import torch
@@ -8,6 +12,7 @@ from torch.utils.data import DataLoader
 
 from modules.data import KSLDataset, read_manifest
 from modules.models import SignLanguageModel
+from modules.paths import DATA_DIR, REPORT_DIR
 
 
 def macro_f1(labels, predictions, num_classes):
@@ -63,7 +68,7 @@ def main():
     parser = argparse.ArgumentParser(description="Evaluate a LOSO checkpoint")
     parser.add_argument("--checkpoint", type=Path, required=True)
     # parser.add_argument("--manifest", type=Path, default=Path("data/processed/manifest.csv"))
-    parser.add_argument("--manifest", type=Path, default=Path("data/processed_five/manifest.csv"))
+    parser.add_argument("--manifest", type=Path, default=DATA_DIR / "processed_five" / "manifest.csv")
     parser.add_argument("--held-out-signer")
     parser.add_argument("--output", type=Path)
     parser.add_argument("--batch-size", type=int, default=64)
@@ -92,7 +97,8 @@ def main():
         "held_out_team": evaluate(model, held_out, device, args.batch_size),
         "external_fixed_test": evaluate(model, external, device, args.batch_size),
     }
-    output_path = args.output or args.checkpoint.with_name("evaluation.json")
+    output_path = args.output or REPORT_DIR / args.checkpoint.stem / "evaluation.json"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps({key: ({k: v for k, v in value.items() if k != "predictions"}
                            if key in {"held_out_team", "external_fixed_test"} and value else value)

@@ -9,6 +9,7 @@ __pycache__/
 # Virtual environment
 venv/
 env/
+.venv/
 .env
 
 # Jupyter Notebook
@@ -26,3 +27,8 @@ Thumbs.db
 scratch/
 duplicates_report.txt
 dropped_words.txt
+
+# Generated handoff archives and build artifacts
+dist/
+build/
+*.egg-info/

@@ -1,6 +1,10 @@
 import argparse
 import os
 from pathlib import Path
+import sys
+
+# Support direct execution from any working directory.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import cv2
 import mediapipe as mp
@@ -8,12 +12,13 @@ import numpy as np
 import torch
 
 from modules.features import extract_keypoints
+from modules.paths import PROJECT_ROOT
 from modules.preprocessing import create_landmarkers, resize_for_detection
 from modules.realtime import RecognitionGate
 from modules.utils import MockResults, load_models_and_maps, put_korean_text
 
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = str(PROJECT_ROOT)
 
 
 def draw_landmarks(display_frame, results, width, height):
