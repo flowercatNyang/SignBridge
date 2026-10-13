@@ -6,7 +6,9 @@ MediaPipe 관절 특징과 경량 1D-CNN·GRU를 이용한 한국수어 단어 �
 
 ```text
 SignBridge/
-├── apps/webcam/          # 웹캠 실시간 인식 데모
+├── apps/
+│   ├── webcam/          # Python 웹캠 실시간 인식 데모
+│   └── mobile/          # Flutter 앱, Android/Web 추론, 앱 테스트
 ├── scripts/
 │   ├── data/            # 데이터 선택, 변환, 영상 전처리, 품질 확인
 │   ├── training/        # 4단계 모델 학습
@@ -38,13 +40,27 @@ pip install -r requirements.txt
 python apps/webcam/handsign_translate.py
 ```
 
-새 모델 `models/sign_language_five_words.pth`는 Git에서 제외되므로 별도로 받아야 합니다. 기존부터 GitHub에 있는 `models/sign_language_gru.pth`는 이번 5단어 모델이 아닙니다. 카메라 권한을 허용하고, 종료는 `q`, 인식 초기화는 `ESC`입니다.
+통합 브랜치에는 앱 ONNX 모델과 대응하는 `models/sign_language_five_words.pth`를 포함합니다. 그 외 학습 가중치와 데이터는 Git에서 제외합니다. `models/sign_language_gru.pth`는 이전 모델이므로 이번 5단어 추론에 사용하지 마세요. 카메라 권한을 허용하고, 종료는 `q`, 인식 초기화는 `ESC`입니다.
+
+## Flutter 앱 실행
+
+앱 작업 디렉터리는 `apps/mobile/`입니다. 기존 앱은 Flutter 2.8 / Dart 2.15 기준이며 iOS 네이티브 동작은 구현되어 있지 않습니다.
+
+```bash
+cd apps/mobile
+flutter pub get
+flutter analyze
+flutter test
+flutter run -d chrome
+```
+
+Android 빌드와 기능 설명은 [앱 README](apps/mobile/README.md)를 참고하세요. 모델·라벨·전처리 연결 및 검증 절차는 [통합 안내](docs/INTEGRATION.md)에 정리했습니다. 현재 앱 기능은 기존 단축키 실행이며, 논의 중인 수리 접수 기능은 아직 구현하지 않았습니다.
 
 ## 데이터 → 학습 → 평가
 
 ```bash
 # 1. 기존 전문가 NPY에서 5단어 선택 + 팀 영상 전처리
-python scripts/data/prepare_five_word_data.py --raw-mov ~/Downloads/raw_mov
+python scripts/data/prepare_five_word_data.py --source-data data/processed --raw-mov ~/Downloads/raw_mov
 
 # 2. 전처리 결과 확인
 python scripts/data/audit_five_word_data.py
@@ -83,4 +99,4 @@ python -m unittest discover -s tests -v
 python tools/build_handoff.py --repo . --output dist/SignBridge_handoff.zip
 ```
 
-전달용 ZIP은 추론 코드·새 모델·MediaPipe 자산·설명을 포함하며 원본 영상과 학습 데이터를 포함하지 않습니다. `data/`, 새 `*.pth`, 가상환경, 캐시, `dist/`는 Git에서 제외됩니다.
+전달용 ZIP은 추론 코드·새 모델·MediaPipe 자산·설명을 포함하며 원본 영상과 학습 데이터를 포함하지 않습니다. 원본 `data/`, 배포 체크포인트 외의 `*.pth`, 가상환경, 캐시, `dist/`는 Git에서 제외됩니다.

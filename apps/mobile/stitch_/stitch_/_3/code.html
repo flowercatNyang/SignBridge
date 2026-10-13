@@ -1,0 +1,185 @@
+<!DOCTYPE html><html lang="ko"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>SignBridge - Command Completed</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;700&amp;family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-variant": "#d7e2ff",
+                        "surface-container-lowest": "#ffffff",
+                        "primary-fixed": "#dae2ff",
+                        "on-primary": "#ffffff",
+                        "primary-container": "#0052cc",
+                        "on-primary-fixed-variant": "#0040a2",
+                        "tertiary-container": "#006844",
+                        "secondary-container": "#feaa00",
+                        "on-surface-variant": "#434654",
+                        "on-background": "#041b3c",
+                        "inverse-surface": "#1d3052",
+                        "on-secondary-fixed-variant": "#624000",
+                        "error-container": "#ffdad6",
+                        "tertiary-fixed-dim": "#65dca4",
+                        "inverse-on-surface": "#edf0ff",
+                        "outline": "#737685",
+                        "surface-tint": "#0c56d0",
+                        "surface-container-high": "#e0e8ff",
+                        "surface-dim": "#cadaff",
+                        "primary": "#003d9b",
+                        "primary-fixed-dim": "#b2c5ff",
+                        "surface-container-highest": "#d7e2ff",
+                        "background": "#f9f9ff",
+                        "on-error-container": "#93000a",
+                        "surface-bright": "#f9f9ff",
+                        "error": "#ba1a1a",
+                        "on-tertiary": "#ffffff",
+                        "outline-variant": "#c3c6d6",
+                        "on-tertiary-container": "#72e9af",
+                        "surface": "#f9f9ff",
+                        "on-surface": "#041b3c",
+                        "secondary-fixed-dim": "#ffb950",
+                        "on-secondary-container": "#684300",
+                        "on-primary-fixed": "#001848",
+                        "on-error": "#ffffff",
+                        "on-primary-container": "#c4d2ff",
+                        "secondary-fixed": "#ffddb3",
+                        "on-secondary-fixed": "#291800",
+                        "secondary": "#825500",
+                        "tertiary": "#004e32",
+                        "on-tertiary-fixed": "#002113",
+                        "on-secondary": "#ffffff",
+                        "surface-container-low": "#f1f3ff",
+                        "on-tertiary-fixed-variant": "#005235",
+                        "inverse-primary": "#b2c5ff",
+                        "tertiary-fixed": "#82f9be",
+                        "surface-container": "#e8edff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "margin-mobile": "20px",
+                        "stack-sm": "12px",
+                        "base": "8px",
+                        "gutter": "16px",
+                        "stack-md": "24px",
+                        "touch-target-min": "48px"
+                    },
+                    "fontFamily": {
+                        "caption": ["Inter", "sans-serif"],
+                        "headline-sm": ["Inter", "sans-serif"],
+                        "headline-md": ["Inter", "sans-serif"],
+                        "label-caps": ["Atkinson Hyperlegible Next", "sans-serif"],
+                        "body-md": ["Inter", "sans-serif"],
+                        "body-lg": ["Inter", "sans-serif"],
+                        "display-lg": ["Inter", "sans-serif"]
+                    },
+                    "fontSize": {
+                        "caption": ["12px", { "lineHeight": "16px", "fontWeight": "500" }],
+                        "headline-sm": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "label-caps": ["14px", { "lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "700" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "display-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }]
+                    },
+                    "animation": {
+                        'pop-in': 'popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
+                        'slide-up': 'slideUp 0.4s ease-out forwards',
+                    },
+                    "keyframes": {
+                        popIn: {
+                            '0%': { transform: 'scale(0.8)', opacity: '0' },
+                            '100%': { transform: 'scale(1)', opacity: '1' },
+                        },
+                        slideUp: {
+                            '0%': { transform: 'translateY(20px)', opacity: '0' },
+                            '100%': { transform: 'translateY(0)', opacity: '1' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #e0e8ff; /* backdrop for the mobile frame */
+            margin: 0;
+            font-family: 'Inter', sans-serif;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body>
+<!-- Mobile Device Frame -->
+<div class="w-[390px] h-[884px] bg-surface flex flex-col relative overflow-hidden shadow-2xl rounded-[40px] border-[8px] border-surface-container-highest">
+<!-- TopAppBar (from JSON) -->
+<header class="w-full top-0 sticky bg-surface flex items-center justify-between px-margin-mobile h-touch-target-min max-w-7xl mx-auto z-10 pt-4 pb-2">
+<button aria-label="Menu" class="flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high transition-colors rounded-full w-10 h-10 active:scale-95 duration-150">
+<span class="material-symbols-outlined">menu</span>
+</button>
+<h1 class="font-headline-md text-headline-md font-bold text-primary">SignBridge</h1>
+<div class="w-10 h-10"></div> <!-- Spacer for perfect centering -->
+</header>
+<!-- Main Content Area -->
+<!-- Note: Navigation Shell (BottomNavBar) is suppressed per the "Success/Confirmation" strict rule, prioritizing the canvas and a clear linear action to return. -->
+<main class="flex-1 flex flex-col items-center justify-center px-margin-mobile pb-[140px] relative z-0">
+<!-- Success Icon (Animated) -->
+<div class="w-[120px] h-[120px] bg-primary rounded-full flex items-center justify-center mb-stack-md animate-pop-in shadow-sm">
+<span class="material-symbols-outlined text-[64px] text-on-primary" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+<!-- Text Content -->
+<div class="flex flex-col items-center animate-slide-up" style="animation-delay: 0.1s; opacity: 0;">
+<h2 class="font-display-lg text-display-lg text-on-surface text-center mb-stack-sm">명령 실행 완료</h2>
+<p class="font-body-lg text-body-lg text-on-surface-variant text-center mb-stack-md max-w-[300px]">
+                    요청하신 <strong class="font-bold text-on-surface">'전화 끊어줘'</strong> 명령이<br>성공적으로 실행되었습니다.
+                </p>
+</div>
+<!-- Contextual Feedback Card (Glassmorphism/Level 1 Card) -->
+<div class="w-full bg-surface-container-lowest rounded-xl p-stack-md flex items-center border border-outline-variant shadow-sm animate-slide-up" style="animation-delay: 0.2s; opacity: 0;">
+<div class="w-[48px] h-[48px] bg-surface-container rounded-full flex items-center justify-center mr-stack-sm">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">call_end</span>
+</div>
+<div class="flex flex-col flex-1">
+<span class="font-caption text-caption text-on-surface-variant mb-[2px]">실행된 기기 제어</span>
+<span class="font-headline-sm text-headline-sm text-on-surface">전화 끊기</span>
+</div>
+<div class="w-8 h-8 rounded-full bg-tertiary-container/30 flex items-center justify-center">
+<span class="material-symbols-outlined text-tertiary text-[18px]">done</span>
+</div>
+</div>
+</main>
+<!-- Global Action Bar (Safe Zone) -->
+<div class="absolute bottom-0 left-0 w-full px-margin-mobile pb-[40px] pt-stack-md bg-gradient-to-t from-surface via-surface to-transparent z-20">
+<button class="w-full h-[56px] bg-primary text-on-primary rounded-full flex items-center justify-center font-label-caps text-label-caps shadow-md hover:bg-on-primary-fixed-variant active:scale-95 transition-all duration-200">
+                확인
+            </button>
+</div>
+</div>
+<script>
+        // Simple script to handle button interaction for demo purposes
+        document.querySelector('.bg-primary').addEventListener('click', function() {
+            this.style.transform = 'scale(0.95)';
+            setTimeout(() => {
+                this.style.transform = 'scale(1)';
+            }, 150);
+        });
+    </script>
+
+
+</body></html>

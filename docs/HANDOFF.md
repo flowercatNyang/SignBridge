@@ -4,7 +4,7 @@
 
 ## 추론에 필요한 파일
 
-- `models/sign_language_five_words.pth`: 새 가중치. Git에서 제외되므로 별도 전달 필요.
+- `models/sign_language_five_words.pth`: 앱 ONNX 모델과 대응하는 배포 가중치. Sejun 통합 브랜치에 포함.
 - `apps/webcam/handsign_translate.py`: 웹캠 데모 및 실시간 파이프라인 참고.
 - `modules/`: 모델 구조, 관절 특징 계산, 실시간 게이트, 클래스 매핑. 반드시 가중치와 함께 현재 버전을 사용.
 - `assets/mediapipe/hand_landmarker.task`, `assets/mediapipe/pose_landmarker_lite.task`: MediaPipe 손/상체 추출 모델.
@@ -46,10 +46,10 @@ python apps/webcam/handsign_translate.py --checkpoint models/sign_language_five_
 
 웹캠은 2프레임 간격, 검출용 최대 변 640픽셀, 30프레임 창을 사용합니다. 게이트는 신뢰도 0.7 이상, 최근 5회 중 3회 합의를 사용하고 손 미검출이 연속 5프레임이면 초기화합니다. `NO_SIGN/TRANSITION`은 모델 출력 클래스가 아닌 게이트 상태입니다. 손이 보이는 비수어 동작을 확실하게 거부하는 모델은 아니며 Top-1/Top-2 확률 차이 필터도 아직 없습니다.
 
-`.pth`는 Python/PyTorch 체크포인트입니다. Android/iOS 앱에 파일을 복사하는 것만으로 실행되는 모델 형식은 아닙니다. Python 서버에서 추론을 호출하거나 앱 실행 환경에 맞는 모델 형식으로 변환해야 하며, 어느 방식이든 동일한 특징 전처리를 구현해야 합니다.
+`.pth`는 Python/PyTorch 체크포인트입니다. 통합된 `apps/mobile/` 앱은 ONNX로 변환된 모델을 Android/Web에서 실행합니다. 변환 도구와 플랫폼별 전처리 검증은 [통합 안내](INTEGRATION.md)를 참고하세요. iOS 네이티브 추론은 아직 구현되지 않았습니다.
 
 독립 촬영자 1명의 저장 영상 15개에서 Top-1 60%, Top-3 100%입니다. 위/아래 혼동이 남아 있고 웹캠 정확도는 아직 측정하지 않았습니다. 전체 진행 과정은 `docs/RUN_RESULTS.md`를 참고하세요.
 
 ## GitHub에서 제외되는 자료
 
-새 `.pth` 가중치와 중간 모델은 `*.pth`, 원본/전처리 데이터는 `data/` 규칙으로 제외됩니다. `Downloads/raw_mov/`는 저장소 밖에 있어서 푸시되지 않습니다. 가상환경, 캐시, `.DS_Store`도 전달할 필요가 없습니다. 기존부터 추적된 예전 `models/sign_language_gru.pth`는 ignore 규칙과 관계없이 GitHub에 남아 있습니다.
+배포용 `models/sign_language_five_words.pth`는 Git에 포함하며, 그 외 새 가중치와 중간 모델은 `*.pth`, 원본/전처리 데이터는 `/data/` 규칙으로 제외합니다. 앱 실행용 `apps/mobile/assets/data/`의 라벨 JSON은 포함합니다. `Downloads/raw_mov/`는 저장소 밖에 있어서 푸시되지 않습니다. 가상환경과 캐시도 전달할 필요가 없습니다. 이미 추적된 이전 가중치는 Git 이력과 함께 보존합니다.
