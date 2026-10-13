@@ -65,6 +65,7 @@ const mime={'.html':'text/html','.js':'application/javascript','.mjs':'applicati
     fs.mkdirSync(path.resolve(__dirname,'../build/sign-tests'),{recursive:true});
     await page.screenshot({path:path.resolve(__dirname,'../build/sign-tests/translation.png')});
     const actual=await page.evaluate(async reference=> {
+      const config=await fetch('assets/assets/models/sign_model.json').then(r=>r.json());
       const worker=new Worker('sign_worker.js');
       try {
         return await new Promise((resolve,reject)=> {
@@ -72,13 +73,12 @@ const mime={'.html':'text/html','.js':'application/javascript','.mjs':'applicati
           worker.onerror=e=>{clearTimeout(timer);reject(new Error(e.message));};
           worker.onmessage=({data})=> {
             if(data.type==='ready') {
-              const features=new Float32Array(4500);
-              for(let i=0;i<30;i++) features.set(reference.frame,i*150);
+              const features=Float32Array.from(reference.features);
               worker.postMessage({type:'predict',features,epoch:0});
             } else if(data.type==='prediction') {clearTimeout(timer);resolve(data.logits);}
             else if(data.type==='error') {clearTimeout(timer);reject(new Error(data.message));}
           };
-          worker.postMessage({type:'load',url:new URL('assets/assets/models/sign_language_gru.onnx',location.href).href});
+          worker.postMessage({type:'load',url:new URL('assets/assets/'+config.model,location.href).href,config});
         });
       } finally {worker.terminate();}
     },reference);

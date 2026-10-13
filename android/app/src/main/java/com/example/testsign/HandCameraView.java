@@ -30,6 +30,8 @@ import io.flutter.plugin.platform.PlatformViewFactory;
 import java.io.ByteArrayOutputStream;
 import java.lang.ref.WeakReference;
 import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -215,10 +217,12 @@ public final class HandCameraView implements PlatformView, Application.ActivityL
             MPImage image = new BitmapImageBuilder(frame.copy(Bitmap.Config.ARGB_8888, false)).build();
             HandLandmarkerResult result;
             String translated;
+            boolean handsAbsent;
             try {
                 result = landmarker.detectForVideo(image, timestamp);
                 PoseLandmarkerResult pose = poseLandmarker.detectForVideo(image, timestamp);
-                if (result.landmarks().isEmpty() || pose.landmarks().isEmpty()) {
+                handsAbsent = result.landmarks().isEmpty();
+                if (handsAbsent || pose.landmarks().isEmpty()) {
                     translator.missing(timestamp);
                     translated = "양손과 어깨가 보이도록 동작해 주세요";
                 } else {
@@ -229,7 +233,7 @@ public final class HandCameraView implements PlatformView, Application.ActivityL
                         if ("Left".equals(side)) left = coordinates(result.landmarks().get(i));
                     }
                     translated = translator.add(SignFeatures.extract(right,left,
-                        coordinates(pose.landmarks().get(0)),frame.getWidth(),frame.getHeight()),timestamp);
+                        coordinates(pose.landmarks().get(0)),frame.getWidth(),frame.getHeight()),timestamp,right!=null,left!=null);
                 }
             }
             finally { image.close(); }
@@ -240,7 +244,10 @@ public final class HandCameraView implements PlatformView, Application.ActivityL
                 preview.mirror = mirror;
                 preview.invalidate();
                 if (translated != null) {
-                    predictions.invokeMethod("prediction", translated);
+                    Map<String,Object> message = new HashMap<>();
+                    message.put("display", translated);
+                    message.put("handsAbsent", handsAbsent);
+                    predictions.invokeMethod("prediction", message);
                     String content = "수화 번역\n" + translated;
                     if (!translation.getText().toString().equals(content)) translation.setText(content);
                 }

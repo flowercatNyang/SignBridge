@@ -49,7 +49,7 @@ async function loadLabels() {
     return response.json();
   };
   modelConfig=await read('models/sign_model.json');
-  if(modelConfig.frames!==30 || modelConfig.features!==150 || modelConfig.featureSchema!=='ksl-shoulder-normalized-150-v1') throw new Error('Unsupported feature schema');
+  if(modelConfig.frames!==30 || modelConfig.features!==452 || modelConfig.featureSchema!=='ksl-temporal-452-v2') throw new Error('Unsupported feature schema');
   const [map,words]=await Promise.all([read(modelConfig.labels),read(modelConfig.dictionary)]);
   const names=new Array(Object.keys(map).length);
   if(!names.length) throw new Error('Empty labels');
@@ -181,12 +181,13 @@ function draw(timestamp) {
       if (!result.landmarks.length || !pose.landmarks.length) {
         // Invalidate outstanding predictions when the subject leaves the frame.
         sequence.missing(timestamp); epoch++;
-        parent.postMessage({type:'signPrediction',display:''},location.origin);
+        parent.postMessage({type:'signPrediction',display:'',handsAbsent:!result.landmarks.length},location.origin);
         translation.textContent='양손과 어깨가 보이도록 동작해 주세요';
       } else {
         const features=extractFeatures(result.landmarks,result.handedness,pose.landmarks[0],video.videoWidth,video.videoHeight);
         // Keep collecting while one GRU request is running; never queue another.
-        const input=sequence.add(features,timestamp);
+        const handMask=['Right','Left'].map(side=>Number(result.handedness.some(h=>h[0]?.categoryName===side)));
+        const input=sequence.add(features,timestamp,handMask);
         if(sequence.frames.length<30) translation.textContent=`동작을 모으는 중 · ${sequence.frames.length} / 30`;
         if(input && !workerBusy) {
           workerBusy=true;

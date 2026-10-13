@@ -19,5 +19,15 @@ with (out/'features.bin').open('wb') as f:
         f.write(struct.pack('>150f',*c['expected']))
 subprocess.run(['javac','-encoding','UTF-8','-d',str(out),str(root/'android/app/src/main/java/com/example/testsign/SignFeatures.java'),str(root/'test/SignFeaturesCheck.java')],check=True)
 subprocess.run(['java','-cp',str(out),'SignFeaturesCheck',str(out/'features.bin')],check=True)
-subprocess.run(['javac','-encoding','UTF-8','-d',str(out),str(root/'android/app/src/main/java/com/example/testsign/SignSequence.java'),str(root/'test/SignSequenceCheck.java')],check=True)
+subprocess.run(['javac','-encoding','UTF-8','-d',str(out),str(root/'android/app/src/main/java/com/example/testsign/SignSequence.java'),str(root/'android/app/src/main/java/com/example/testsign/SignTemporalFeatures.java'),str(root/'test/SignSequenceCheck.java')],check=True)
 subprocess.run(['java','-cp',str(out),'com.example.testsign.SignSequenceCheck'],check=True)
+
+temporal=json.loads((root/'test/fixtures/sign_temporal.json').read_text(encoding='utf-8'))
+with (out/'temporal.bin').open('wb') as f:
+    f.write(struct.pack('>i',len(temporal)))
+    for case in temporal:
+        for frame in case['frames']: f.write(struct.pack('>150f',*frame))
+        for mask in case['masks']: f.write(struct.pack('>2f',*mask))
+        f.write(struct.pack('>13560f',*case['expected']))
+subprocess.run(['javac','-encoding','UTF-8','-cp',str(out),'-d',str(out),str(root/'test/SignTemporalFeaturesCheck.java')],check=True)
+subprocess.run(['java','-cp',str(out),'com.example.testsign.SignTemporalFeaturesCheck',str(out/'temporal.bin')],check=True)

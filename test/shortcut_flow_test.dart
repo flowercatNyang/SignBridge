@@ -1,154 +1,91 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:testsign/src/demo_app.dart';
 import 'package:testsign/src/hand_camera/hand_camera.dart';
 import 'package:testsign/src/sign_commands.dart';
-import 'widget_test.dart' show launch, tapVisible;
 
 void main() {
-  final calls = <MethodCall>[];
-  const channel = MethodChannel('signbridge/actions');
-  final binding = TestWidgetsFlutterBinding.ensureInitialized()
-      as TestWidgetsFlutterBinding;
-  setUp(() {
-    calls.clear();
-    binding.defaultBinaryMessenger.setMockMethodCallHandler(channel,
+  testWidgets('Temporary permission dialog does not disable automatic actions',
+      (tester) async {
+    final calls = <MethodCall>[];
+    const channel = MethodChannel('signbridge/actions');
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel,
         (call) async {
-      if (call.method == 'loadPhone') return '01012345678';
       calls.add(call);
-      return '실행 요청 완료';
+      return '미디어 볼륨을 올렸습니다.';
     });
-  });
-  tearDown(() =>
-      binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, null));
-
-  Future<ValueChanged<SignPrediction>> open(WidgetTester tester) async {
-    await launch(tester);
-    await tapVisible(tester, '단축키 실행');
-    await tapVisible(tester, '수화 번역 카메라 시작');
-    return tester.widget<HandCamera>(find.byType(HandCamera)).onPrediction!;
-  }
-
-  testWidgets(
-      'Cancel does not execute or immediately repeat the same prediction',
-      (tester) async {
-    final predict = await open(tester);
-    predict(const SignPrediction('1', .99));
-    await tester.pumpAndSettle();
-    expect(find.text('이 명령이 맞을까요?'), findsOneWidget);
+    addTearDown(() => tester.binding.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, null));
+    await tester.pumpWidget(const SignBridgeApp());
+    final predict =
+        tester.widget<HandCamera>(find.byType(HandCamera)).onPrediction!;
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    predict(const SignPrediction('위', .99));
     expect(calls, isEmpty);
-    await tapVisible(tester, '취소');
-    predict(const SignPrediction('1', .99));
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     await tester.pumpAndSettle();
-    expect(calls, isEmpty);
-    expect(find.text('이 명령이 맞을까요?'), findsNothing);
-  }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
-
-  testWidgets(
-      'Developer switch enables real shortcut buttons and disables them again',
-      (tester) async {
-    await launch(tester);
-    await tapVisible(tester, '설정');
-    await tapVisible(tester, '개발자 모드');
-    await tapVisible(tester, '번역');
-    await tapVisible(tester, '단축키 실행');
-    await tapVisible(tester, '수화 번역 카메라 시작');
-    await tapVisible(tester, '배달의민족 앱 열기');
-    await tapVisible(tester, '실행');
-    expect(calls.single.method, 'baemin');
-    await tapVisible(tester, '설정');
-    await tapVisible(tester, '개발자 모드');
-    await tapVisible(tester, '번역');
-    await tapVisible(tester, '수화 번역 카메라 시작');
-    await tapVisible(tester, '배달의민족 앱 열기');
-    expect(find.text('이 명령이 맞을까요?'), findsNothing);
+    predict(SignPrediction.fromDisplay('위 · 75%')!);
+    await tester.pumpAndSettle();
+    expect(calls.single.method, 'volumeUp');
+    expect(find.byType(AlertDialog), findsNothing);
+    expect(find.text('미디어 볼륨을 올렸습니다.'), findsOneWidget);
+    predict(const SignPrediction('위', .99));
+    await tester.pumpAndSettle();
     expect(calls.length, 1);
+    expect(find.text('번역: 위'), findsOneWidget);
+    expect(find.text('미디어 볼륨을 올렸습니다.'), findsOneWidget);
   }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
-
-  testWidgets('Message passes saved recipient and entered body to the platform',
+  testWidgets('Company registration validates and persists coordinates',
       (tester) async {
-    final predict = await open(tester);
-    predict(const SignPrediction('6', .99));
-    await tester.pumpAndSettle();
-    await tapVisible(tester, '실행');
-    await tester.enterText(find.byType(TextField), '곧 도착해요 & 안녕하세요');
-    await tapVisible(tester, '확인');
-    expect(calls.single.method, 'message');
-    expect(jsonDecode(calls.single.arguments['value'] as String),
-        {'phone': '01012345678', 'body': '곧 도착해요 & 안녕하세요'});
-  }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
-
-  testWidgets('Message without a saved number shows a useful error',
-      (tester) async {
-    binding.defaultBinaryMessenger.setMockMethodCallHandler(channel,
+    final calls = <MethodCall>[];
+    const channel = MethodChannel('signbridge/actions');
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel,
         (call) async {
-      if (call.method == 'loadPhone') return '';
+      if (call.method == 'loadCompany') return '';
       calls.add(call);
-      return '';
+      return null;
     });
-    final predict = await open(tester);
-    predict(const SignPrediction('6', .99));
+    addTearDown(() => tester.binding.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, null));
+    await tester.pumpWidget(const SignBridgeApp());
+    await tester.scrollUntilVisible(find.text('회사 위치 등록 / 변경'), 200);
+    await tester.tap(find.text('회사 위치 등록 / 변경'));
     await tester.pumpAndSettle();
-    await tapVisible(tester, '실행');
-    expect(find.textContaining('먼저 전화·메시지 번호를 등록'), findsOneWidget);
+    await tester.tap(find.text('저장'));
+    await tester.pumpAndSettle();
     expect(calls, isEmpty);
+    await tester.enterText(find.byType(TextField).at(0), '우리 회사');
+    await tester.enterText(find.byType(TextField).at(1), '37.5665');
+    await tester.enterText(find.byType(TextField).at(2), '126.978');
+    await tester.tap(find.text('저장'));
+    await tester.pumpAndSettle();
+    expect(calls.single.method, 'saveCompany');
+    expect(calls.single.arguments['value'], contains('우리 회사'));
   }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
-
-  for (final cancel in [false, true]) {
-    testWidgets('Timer digits produce 12 minutes 34 seconds; cancel=$cancel',
-        (tester) async {
-      final predict = await open(tester);
-      predict(const SignPrediction('7', .99));
-      await tester.pumpAndSettle();
-      await tapVisible(tester, '실행');
-      for (final digit in [1, 2, 3, 4]) {
-        // Previous held signs cannot fill the next position automatically.
-        predict(SignPrediction('$digit', .99));
-        await tester.pumpAndSettle();
-        expect(find.text('이 숫자가 맞을까요?'), findsNothing);
-        await tapVisible(tester, '다음 숫자 인식');
-        predict(SignPrediction('$digit', .99));
-        await tester.pumpAndSettle();
-        await tapVisible(tester, '입력');
-      }
-      expect(find.text('12분 34초'), findsOneWidget);
-      expect(calls, isEmpty);
-      await tapVisible(tester, cancel ? '취소' : '실행');
-      if (cancel) {
-        expect(calls, isEmpty);
-      } else {
-        expect(calls.single.method, 'timer');
-        expect(calls.single.arguments['value'], '754');
-      }
-    }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
-  }
-
-  testWidgets(
-      'Timer accepts zero button, rejects invalid seconds and zero duration',
+  testWidgets('Permission errors appear and recognition pauses in background',
       (tester) async {
-    final predict = await open(tester);
-    predict(const SignPrediction('7', .99));
+    var calls = 0;
+    const channel = MethodChannel('signbridge/actions');
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel,
+        (call) async {
+      calls++;
+      throw PlatformException(
+          code: 'permission_denied', message: '연락처 권한이 거부되었습니다.');
+    });
+    addTearDown(() => tester.binding.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, null));
+    await tester.pumpWidget(const SignBridgeApp());
+    final predict =
+        tester.widget<HandCamera>(find.byType(HandCamera)).onPrediction!;
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    predict(const SignPrediction('엄마', .99));
+    expect(calls, 0);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     await tester.pumpAndSettle();
-    await tapVisible(tester, '실행');
-    for (var i = 0; i < 4; i++) {
-      await tapVisible(tester, '다음 숫자 인식');
-      if (i == 2) {
-        predict(const SignPrediction('6', .99));
-        await tester.pumpAndSettle();
-        await tester.drag(
-            find.byType(Scrollable).hitTestable().first, const Offset(0, 300));
-        await tester.pumpAndSettle();
-        expect(find.text('초의 십의 자리는 0~5만 입력할 수 있습니다.'), findsOneWidget);
-      }
-      await tapVisible(tester, '0 입력');
-      await tapVisible(tester, '입력');
-    }
-    await tester.drag(
-        find.byType(Scrollable).hitTestable().first, const Offset(0, 300));
+    predict(const SignPrediction('엄마', .99));
     await tester.pumpAndSettle();
-    expect(find.text('1초 이상 입력해 주세요.'), findsOneWidget);
-    expect(calls, isEmpty);
-    await tapVisible(tester, '타이머 취소');
+    expect(calls, 1);
+    expect(find.textContaining('연락처 권한이 거부'), findsOneWidget);
   }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 }

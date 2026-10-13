@@ -41,8 +41,7 @@ class _HandCameraState extends State<HandCamera> {
           data['type'] == 'signPrediction' &&
           data['display'] is String) {
         widget.onPrediction?.call(
-            SignPrediction.fromDisplay(data['display'] as String) ??
-                const SignPrediction('', 0));
+            SignPrediction.fromMessage(data) ?? const SignPrediction('', 0));
       }
     });
   }

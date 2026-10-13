@@ -19,8 +19,8 @@ final class SignTranslator implements AutoCloseable {
 
     SignTranslator(AssetManager assets) throws Exception {
         JSONObject config = new JSONObject(new String(read(assets,"models/sign_model.json"),StandardCharsets.UTF_8));
-        if (config.getInt("frames") != 30 || config.getInt("features") != 150 ||
-            !config.getString("featureSchema").equals("ksl-shoulder-normalized-150-v1")) throw new IOException("Unsupported feature schema");
+        if (config.getInt("frames") != 30 || config.getInt("features") != 452 ||
+            !config.getString("featureSchema").equals("ksl-temporal-452-v2")) throw new IOException("Unsupported feature schema");
         inputName = config.getString("input");
         outputName = config.getString("output");
         JSONObject map = new JSONObject(new String(read(assets,config.getString("labels")),StandardCharsets.UTF_8));
@@ -53,12 +53,12 @@ final class SignTranslator implements AutoCloseable {
     void reset() { sequence.reset(); }
     void missing(long timestamp) { sequence.missing(timestamp); }
 
-    String add(float[] features,long timestamp) throws OrtException {
-        float[] featuresWindow=sequence.add(features,timestamp);
+    String add(float[] features,long timestamp,boolean rightDetected,boolean leftDetected) throws OrtException {
+        float[] featuresWindow=sequence.add(features,timestamp,rightDetected,leftDetected);
         if(sequence.size()<30) return "동작을 모으는 중 · "+sequence.size()+" / 30";
         if(featuresWindow==null) return null;
         FloatBuffer buffer=FloatBuffer.wrap(featuresWindow);
-        try(OnnxTensor input=OnnxTensor.createTensor(environment,buffer,new long[]{1,30,150});
+        try(OnnxTensor input=OnnxTensor.createTensor(environment,buffer,new long[]{1,30,452});
             OrtSession.Result result=session.run(Collections.singletonMap(inputName,input))) {
             float[] logits=((float[][])result.get(outputName).orElseThrow(() -> new IllegalStateException("Missing model output")).getValue())[0];
             if(logits.length!=labels.length) throw new IllegalStateException("Invalid output shape");
@@ -70,7 +70,8 @@ final class SignTranslator implements AutoCloseable {
             double sum=0;
             for(float value:logits) sum+=Math.exp(value-logits[best]);
             double confidence=1/sum;
-            return labels[best]+" · "+Math.round(confidence*100)+"%";
+            // Flutter gates this integer percentage: never round 74.9% up to 75%.
+            return labels[best]+" · "+(int)Math.floor(confidence*100)+"%";
         }
     }
     @Override public void close() throws OrtException { reset(); session.close(); }

@@ -10,7 +10,7 @@ self.onmessage=async ({data})=> {
       session=await ort.InferenceSession.create(data.url,{executionProviders:['wasm']});
       self.postMessage({type:'ready'});
     } else if (data.type==='predict') {
-      const input=new ort.Tensor('float32',data.features,[1,30,150]);
+      const input=new ort.Tensor('float32',data.features,[1,config.frames,config.features]);
       let result;
       try {
         result=await session.run({[config.input]:input});

@@ -49,27 +49,64 @@ export function extractFeatures(hands, handedness, poseLandmarks, w, h) {
   return out;
 }
 
+// Matches Python build_temporal_features; live windows always contain 30 frames.
+export function buildTemporalFeatures(frames, masks) {
+  if (frames.length !== 30 || masks.length !== 30 ||
+      frames.some(frame => frame.length !== 150) || masks.some(mask => mask.length !== 2)) {
+    throw new Error('Expected 30 frames of 150 features and two hand masks');
+  }
+  const base = frames.map(frame => Float32Array.from(frame));
+  for (let hand = 0; hand < 2; hand++) {
+    const first = masks.findIndex(mask => mask[hand] > .5);
+    if (first < 0) continue;
+    let previous = first;
+    for (let t = 0; t < 30; t++) {
+      if (masks[t][hand] > .5) { previous = t; continue; }
+      let next = t + 1;
+      while (next < 30 && masks[next][hand] <= .5) next++;
+      if (next === 30) next = previous;
+      const ratio = next === previous ? 0 : (t - previous) / (next - previous);
+      for (let c = hand * 63; c < (hand + 1) * 63; c++) {
+        base[t][c] = base[previous][c] + ratio * (base[next][c] - base[previous][c]);
+      }
+    }
+  }
+  const result = new Float32Array(30 * 452), previousVelocity = new Float32Array(150);
+  for (let t = 0; t < 30; t++) {
+    const offset = t * 452;
+    for (let c = 0; c < 150; c++) {
+      const velocity = t === 0 ? 0 : Math.fround(base[t][c] - base[t - 1][c]);
+      result[offset + c] = base[t][c];
+      result[offset + 150 + c] = velocity;
+      result[offset + 300 + c] = velocity - previousVelocity[c];
+      previousVelocity[c] = velocity;
+    }
+    result[offset + 450] = masks[t][0];
+    result[offset + 451] = masks[t][1];
+  }
+  return result;
+}
+
 export class SignSequence {
   constructor() { this.reset(); }
-  reset() { this.frames=[]; this.missingSince=null; this.lastPrediction=-Infinity; }
+  reset() { this.frames=[]; this.masks=[]; this.missingSince=null; this.lastPrediction=-Infinity; }
   missing(timestamp) {
     if (this.missingSince===null) this.missingSince=timestamp;
     if (timestamp-this.missingSince>=1500) {
-      this.frames=[];
+      this.frames=[]; this.masks=[];
       this.lastPrediction=-Infinity;
     }
   }
-  add(features, timestamp) {
+  add(features, timestamp, handMask) {
     // Processing latency is not loss of tracking. Only observed absence resets.
     if (this.missingSince!==null && timestamp-this.missingSince>=1500) this.reset();
     this.missingSince=null;
-    this.frames.push(features);
-    if (this.frames.length>30) this.frames.shift();
+    this.frames.push(Float32Array.from(features));
+    this.masks.push(Float32Array.from(handMask));
+    if (this.frames.length>30) { this.frames.shift(); this.masks.shift(); }
     if (this.frames.length<30 || timestamp-this.lastPrediction<500) return null;
     this.lastPrediction=timestamp;
-    const input=new Float32Array(30*150);
-    this.frames.forEach((frame,i)=>input.set(frame,i*150));
-    return input;
+    return buildTemporalFeatures(this.frames,this.masks);
   }
 }
 
@@ -79,5 +116,5 @@ export function predictionText(logits, labels) {
   }
   const best=Array.from(logits).reduce((a,_,i)=>logits[i]>logits[a]?i:a,0);
   const confidence=1/Array.from(logits).reduce((sum,v)=>sum+Math.exp(v-logits[best]),0);
-  return `${labels[best]} · ${Math.round(confidence*100)}%`;
+  return `${labels[best]} · ${Math.floor(confidence*100)}%`;
 }

@@ -88,26 +88,3 @@ Widget heading(String text) => Text(text,
         fontSize: 24, fontWeight: FontWeight.w700, height: 1.4));
 Widget description(String text) => Text(text,
     style: const TextStyle(color: muted, fontSize: 15, height: 1.65));
-
-class DemoNavigation extends StatelessWidget {
-  const DemoNavigation({Key? key, required this.onTap, this.index = 0})
-      : super(key: key);
-  final ValueChanged<int> onTap;
-  final int index;
-  @override
-  Widget build(BuildContext context) => BottomNavigationBar(
-          currentIndex: index,
-          onTap: onTap,
-          type: BottomNavigationBarType.fixed,
-          selectedItemColor: primary,
-          unselectedItemColor: muted,
-          backgroundColor: canvas,
-          selectedFontSize: 12,
-          unselectedFontSize: 12,
-          items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.translate), label: '번역'),
-            BottomNavigationBarItem(icon: Icon(Icons.devices), label: '기기'),
-            BottomNavigationBarItem(icon: Icon(Icons.history), label: '기록'),
-            BottomNavigationBarItem(icon: Icon(Icons.settings), label: '설정')
-          ]);
-}

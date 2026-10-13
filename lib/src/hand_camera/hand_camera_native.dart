@@ -27,8 +27,7 @@ class _HandCameraState extends State<HandCamera> {
             _channel = MethodChannel('signbridge/predictions/$id');
             _channel!.setMethodCallHandler((call) async {
               if (mounted && call.method == 'prediction') {
-                final prediction =
-                    SignPrediction.fromDisplay(call.arguments as String);
+                final prediction = SignPrediction.fromMessage(call.arguments);
                 widget.onPrediction
                     ?.call(prediction ?? const SignPrediction('', 0));
               }

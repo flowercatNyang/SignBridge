@@ -13,14 +13,14 @@ class DeviceActions {
     }
   }
 
-  Future<String> loadPhone() async {
+  Future<String> loadCompany() async {
     try {
-      return await channel.invokeMethod<String>('loadPhone') ?? '';
+      return await channel.invokeMethod<String>('loadCompany') ?? '';
     } on MissingPluginException {
       return '';
     }
   }
 
-  Future<void> savePhone(String phone) =>
-      channel.invokeMethod<void>('savePhone', {'value': phone});
+  Future<void> saveCompany(String company) =>
+      channel.invokeMethod<void>('saveCompany', {'value': company});
 }
