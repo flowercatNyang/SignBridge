@@ -30,12 +30,10 @@ const guides = [
 ];
 
 class GuidePage extends StatelessWidget {
-  const GuidePage({Key? key, required this.onTab}) : super(key: key);
-  final ValueChanged<int> onTab;
+  const GuidePage({Key? key}) : super(key: key);
   @override
   Widget build(BuildContext context) => Scaffold(
       appBar: AppBar(title: const Text('SignBridge'), centerTitle: true),
-      bottomNavigationBar: DemoNavigation(onTap: onTab),
       body: SafeArea(
           child: Center(
               child: ConstrainedBox(
@@ -83,8 +81,8 @@ class GuidePage extends StatelessWidget {
                                       onPressed: () => Navigator.push(
                                           context,
                                           MaterialPageRoute<void>(
-                                              builder: (_) => GuideDetail(
-                                                  guide: guide, onTab: onTab))),
+                                              builder: (_) =>
+                                                  GuideDetail(guide: guide))),
                                       icon: const Icon(Icons.arrow_forward,
                                           size: 18),
                                       label: const Text('상세 가이드'))),
@@ -94,14 +92,11 @@ class GuidePage extends StatelessWidget {
 }
 
 class GuideDetail extends StatelessWidget {
-  const GuideDetail({Key? key, required this.guide, required this.onTab})
-      : super(key: key);
+  const GuideDetail({Key? key, required this.guide}) : super(key: key);
   final GestureGuide guide;
-  final ValueChanged<int> onTab;
   @override
   Widget build(BuildContext context) => Scaffold(
       appBar: AppBar(title: const Text('동작 상세 가이드'), centerTitle: true),
-      bottomNavigationBar: DemoNavigation(onTap: onTab),
       body: SafeArea(
           child: Center(
               child: ConstrainedBox(

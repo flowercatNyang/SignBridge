@@ -1,4 +1,4 @@
-// Port of assets/modules/features.py. Coordinates are from the unmirrored image.
+// Port of the repository's modules/features.py. Coordinates are from the unmirrored image.
 const hp = [0,1,2,3,0,5,6,7,0,9,10,11,0,13,14,15,0,17,18,19];
 const hc = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20];
 const up = [1,1,2,3,1,5,6], uc = [0,2,3,4,5,6,7];

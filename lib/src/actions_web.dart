@@ -4,6 +4,9 @@ import 'dart:convert';
 
 class DeviceActions {
   Future<String> execute(String action, [String value = '']) async {
+    if (action == 'set_alarm' || action == 'compose_message') {
+      throw Exception('알람·문자 작성은 Android 앱에서 실행해 주세요. 웹에서는 번역과 요청 확인까지 가능합니다.');
+    }
     if (action == 'emergency') {
       html.window.location.assign('tel:119');
       return '119 발신 화면 연결을 요청했습니다. 전화 앱에서 통화 버튼을 눌러 주세요.';

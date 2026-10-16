@@ -115,7 +115,7 @@ The style is **Modern Minimalist with a focus on Clarity**. It prioritizes high-
 
 ## Colors
 
-The palette is engineered for **AAA accessibility compliance**. 
+The palette is engineered for **AAA accessibility compliance**.
 
 - **Primary (#0052CC):** A deep, trustworthy blue used for main actions and branding. It provides high contrast against light backgrounds.
 - **Secondary (#FFAB00):** A vivid amber used for "Warning" states or to highlight active smart home devices (e.g., a light being turned on).
@@ -129,12 +129,12 @@ This design system utilizes **Inter** for its systematic clarity and excellent l
 
 **Usage Rules:**
 - **Text Alignment:** Left-align all primary text. Avoid justified text to maintain consistent word spacing.
-- **High Contrast:** Ensure all text-to-background ratios exceed 4.5:1. 
+- **High Contrast:** Ensure all text-to-background ratios exceed 4.5:1.
 - **Dynamic Type:** All sizes must scale proportionally with system-level font size adjustments.
 
 ## Layout & Spacing
 
-The layout follows a **Fluid Grid** model with an emphasis on oversized touch targets. 
+The layout follows a **Fluid Grid** model with an emphasis on oversized touch targets.
 
 - **The 8px Rhythm:** All spacing, margins, and heights are multiples of 8px to ensure a consistent vertical cadence.
 - **Mobile First:** A single-column layout is preferred for translation feeds. For smart home controls, a 2-column grid is used to keep buttons large and reachable.
@@ -174,7 +174,7 @@ The shape language is **Rounded (0.5rem / 8px)**. This radius offers a friendly,
 - **Gesture Area:** A dedicated "Camera View" component that maximizes the viewport while keeping the controls accessible.
 
 ### Input Fields
-- **Styling:** Soft-grey background with a clear bottom border. 
+- **Styling:** Soft-grey background with a clear bottom border.
 - **Labels:** Labels must always be visible (never use placeholder-only inputs).
 - **Feedback:** Success and Error messages must include an icon (Checkmark or Warning) to ensure the message is conveyed through more than just color.
 

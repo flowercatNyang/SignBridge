@@ -1,4 +1,4 @@
-﻿{
+{
     "name": "SignBridge",
     "short_name": "SignBridge",
     "start_url": ".",
@@ -33,4 +33,3 @@
         }
     ]
 }
-

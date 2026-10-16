@@ -1,7 +1,7 @@
 """Export the five-word v2 checkpoint and verify ONNX against PyTorch on CPU.
 
 Dependencies: torch, numpy, onnx==1.19.1, onnxruntime==1.20.1.
-Run from the repository root: python tools/export_sign_model.py
+Run from the repository root: python apps/mobile/tools/export_sign_model.py
 """
 import hashlib
 import json
@@ -14,7 +14,8 @@ import onnxruntime as ort
 import torch
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / 'assets'))
+REPO_ROOT = ROOT.parents[1]
+sys.path.insert(0, str(REPO_ROOT))
 from modules.models import SignLanguageModel
 from modules.features import INPUT_DIM, SEQUENCE_LENGTH, build_temporal_features
 from modules.vocabulary import LABEL_MAP, WORDS
@@ -25,8 +26,8 @@ def write_json(path, value):
 
 
 def main():
-    source = ROOT / 'assets/models/sign_language_five_words.pth'
-    target = source.with_suffix('.onnx')
+    source = REPO_ROOT / 'models/sign_language_five_words.pth'
+    target = ROOT / 'assets/models/sign_language_five_words.onnx'
     checkpoint = torch.load(source, map_location='cpu', weights_only=True)
     if checkpoint.get('format_version') != 2:
         raise ValueError('Expected a v2 temporal-feature checkpoint')

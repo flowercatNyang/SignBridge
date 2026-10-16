@@ -48,6 +48,18 @@ public final class HandCameraView implements PlatformView, Application.ActivityL
         }
     }
     private static WeakReference<HandCameraView> active = new WeakReference<>(null);
+    public static boolean isCameraReady() {
+        HandCameraView view = active.get();
+        return view != null && !view.disposed && !view.paused && view.camera != null;
+    }
+    public static void setCompact(boolean compact) {
+        HandCameraView view = active.get();
+        if (view == null || view.disposed) return;
+        for (int i = 0; i < view.root.getChildCount(); i++) {
+            View child = view.root.getChildAt(i);
+            if (child != view.preview) child.setVisibility(compact ? View.GONE : View.VISIBLE);
+        }
+    }
     public static void permissionChanged() {
         HandCameraView view = active.get();
         if (view != null && !view.disposed) {
@@ -306,18 +318,31 @@ public final class HandCameraView implements PlatformView, Application.ActivityL
         activity.getApplication().unregisterActivityLifecycleCallbacks(this);
         if (active.get() == this) active.clear();
     }
-    @Override public void onActivityPaused(Activity a) { if (a == activity) { paused = true; stop(); status.setText("카메라 일시 중지"); } }
+    @Override public void onActivityPaused(Activity a) {
+        if (a == activity && !((MainActivity) activity).keepCameraInPip()) {
+            paused = true; stop(); status.setText("카메라 일시 중지");
+        }
+    }
     @Override public void onActivityResumed(Activity a) {
         if (a != activity || disposed) return;
         paused = false;
         // Returning from a denied permission dialog must not immediately request it again.
-        if (activity.checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) start();
+        if (activity.checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+            if (camera == null) start();
+        }
         else status.setText("카메라 권한을 허용한 뒤 시작 버튼을 눌러 주세요.");
     }
     @Override public void onActivityDestroyed(Activity a) { if (a == activity) dispose(); }
     @Override public void onActivityCreated(Activity a, Bundle b) { }
-    @Override public void onActivityStarted(Activity a) { }
-    @Override public void onActivityStopped(Activity a) { }
+    @Override public void onActivityStarted(Activity a) {
+        if (a == activity && ((MainActivity) activity).keepCameraInPip()) {
+            paused = false;
+            if (camera == null && activity.checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) start();
+        }
+    }
+    @Override public void onActivityStopped(Activity a) {
+        if (a == activity && !disposed) { paused = true; stop(); }
+    }
     @Override public void onActivitySaveInstanceState(Activity a, Bundle b) { }
 
     private static final class FrameView extends View {

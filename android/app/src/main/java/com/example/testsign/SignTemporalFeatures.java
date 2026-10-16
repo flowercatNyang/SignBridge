@@ -1,6 +1,6 @@
 package com.example.testsign;
 
-/** Matches build_temporal_features in assets/modules/features.py for 30 frames. */
+/** Matches build_temporal_features in the repository's modules/features.py for 30 frames. */
 final class SignTemporalFeatures {
     static final int FRAMES = 30, BASE = 150, FEATURES = 452;
 

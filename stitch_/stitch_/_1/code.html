@@ -153,13 +153,13 @@
     if (type === 'device') {
       deviceCard.setAttribute('aria-checked', 'true');
       sosCard.setAttribute('aria-checked', 'false');
-      
+
       deviceIndicator.classList.remove('opacity-0');
       sosIndicator.classList.add('opacity-0');
-      
+
       checkDevice.className = 'w-7 h-7 rounded-full bg-primary text-on-primary flex items-center justify-center shadow-sm transition-all duration-200';
       checkSos.className = 'w-7 h-7 rounded-full bg-surface-container-high text-transparent flex items-center justify-center transition-all duration-200';
-      
+
       deviceCard.classList.add('shadow-md');
       sosCard.classList.remove('shadow-md');
       sosCard.classList.add('shadow-sm');
@@ -168,13 +168,13 @@
     } else {
       deviceCard.setAttribute('aria-checked', 'false');
       sosCard.setAttribute('aria-checked', 'true');
-      
+
       deviceIndicator.classList.add('opacity-0');
       sosIndicator.classList.remove('opacity-0');
-      
+
       checkDevice.className = 'w-7 h-7 rounded-full bg-surface-container-high text-transparent flex items-center justify-center transition-all duration-200';
       checkSos.className = 'w-7 h-7 rounded-full bg-error text-on-error flex items-center justify-center shadow-sm transition-all duration-200';
-      
+
       sosCard.classList.add('shadow-md');
       deviceCard.classList.remove('shadow-md');
       deviceCard.classList.add('shadow-sm');

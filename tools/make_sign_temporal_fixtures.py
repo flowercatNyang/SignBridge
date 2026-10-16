@@ -5,7 +5,7 @@ import sys
 import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / 'assets'))
+sys.path.insert(0, str(ROOT.parents[1]))
 from modules.features import build_temporal_features
 
 rng = np.random.default_rng(2026)

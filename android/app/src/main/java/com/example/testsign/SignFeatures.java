@@ -1,6 +1,6 @@
 package com.example.testsign;
 
-/** Port of assets/modules/features.py; input landmarks use the unmirrored frame. */
+/** Port of the repository's modules/features.py; landmarks use the unmirrored frame. */
 public final class SignFeatures {
     private static final int[] HP = {0,1,2,3,0,5,6,7,0,9,10,11,0,13,14,15,0,17,18,19};
     private static final int[] HC = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20};

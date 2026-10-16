@@ -1,4 +1,4 @@
-﻿// Local preview server for the Flutter web build. No external packages required.
+// Local preview server for the Flutter web build. No external packages required.
 const http = require('http');
 const fs = require('fs');
 const path = require('path');

@@ -1,4 +1,4 @@
-﻿name: testsign
+name: testsign
 description: SignBridge sign language assistant UI demo.
 
 # The following line prevents the package from being accidentally published to
@@ -94,4 +94,3 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/custom-fonts/#from-packages
-

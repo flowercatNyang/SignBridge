@@ -6,7 +6,7 @@ from types import SimpleNamespace as NS
 import numpy as np
 
 root=Path(__file__).resolve().parents[1]
-sys.path.insert(0,str(root/'assets'))
+sys.path.insert(0,str(root.parents[1]))
 from modules.features import extract_keypoints
 
 rng=np.random.default_rng(123)
