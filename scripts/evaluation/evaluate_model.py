@@ -13,6 +13,7 @@ from torch.utils.data import DataLoader
 from modules.data import KSLDataset, read_manifest
 from modules.models import SignLanguageModel
 from modules.paths import DATA_DIR, REPORT_DIR
+from modules.vocabulary import PROCESSED_NAME
 
 
 def macro_f1(labels, predictions, num_classes):
@@ -68,7 +69,7 @@ def main():
     parser = argparse.ArgumentParser(description="Evaluate a LOSO checkpoint")
     parser.add_argument("--checkpoint", type=Path, required=True)
     # parser.add_argument("--manifest", type=Path, default=Path("data/processed/manifest.csv"))
-    parser.add_argument("--manifest", type=Path, default=DATA_DIR / "processed_five" / "manifest.csv")
+    parser.add_argument("--manifest", type=Path, default=DATA_DIR / PROCESSED_NAME / "manifest.csv")
     parser.add_argument("--held-out-signer")
     parser.add_argument("--output", type=Path)
     parser.add_argument("--batch-size", type=int, default=64)
@@ -83,6 +84,9 @@ def main():
 
     held_out_signer = args.held_out_signer or checkpoint.get("held_out_signer")
     samples = read_manifest(args.manifest)
+    checkpoint_map = checkpoint["label_map"]
+    if any(checkpoint_map.get(sample.class_key) != sample.label for sample in samples):
+        raise ValueError("Manifest labels do not match this checkpoint")
     held_out = [
         sample
         for sample in samples

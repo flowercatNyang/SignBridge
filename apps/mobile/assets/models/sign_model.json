@@ -6,5 +6,8 @@
   "output": "logits",
   "featureSchema": "ksl-temporal-452-v2",
   "frames": 30,
-  "features": 452
+  "features": 452,
+  "labelOverrides": {
+    "WORD2100": "위(내장)"
+  }
 }

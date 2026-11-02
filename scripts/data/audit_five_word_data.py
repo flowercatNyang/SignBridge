@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import numpy as np
 
-from modules.vocabulary import LABEL_MAP, WORDS
+from modules.vocabulary import LABEL_MAP, WORDS, PROCESSED_NAME
 from modules.paths import DATA_DIR
 
 
@@ -53,7 +53,7 @@ def audit(root):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--processed-root", type=Path, default=DATA_DIR / "processed_five")
+    parser.add_argument("--processed-root", type=Path, default=DATA_DIR / PROCESSED_NAME)
     args = parser.parse_args()
     report = audit(args.processed_root)
     print(json.dumps({key: value for key, value in report.items() if key != "low_coverage_clips"},

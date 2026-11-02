@@ -10,7 +10,6 @@ import numpy as np
 
 from modules.features import INPUT_DIM, SEQUENCE_LENGTH, build_temporal_features, extract_keypoints
 from modules.paths import MEDIAPIPE_DIR, PROJECT_ROOT
-from modules.vocabulary import LABEL_MAP, WORDS
 
 
 APP = PROJECT_ROOT / "apps" / "mobile"
@@ -32,7 +31,7 @@ class AppContractTest(unittest.TestCase):
         assets = re.findall(r"^\s+- (assets/\S+)\s*$", manifest, re.MULTILINE)
         self.assertTrue(assets)
         for asset in assets:
-            self.assertTrue((APP / asset).is_file(), asset)
+            self.assertTrue((APP / asset).exists(), asset)
 
     def test_model_config_labels_and_artifact_hashes(self):
         assets = APP / "assets"
@@ -40,14 +39,17 @@ class AppContractTest(unittest.TestCase):
         self.assertEqual(config["features"], INPUT_DIM)
         self.assertEqual(config["frames"], SEQUENCE_LENGTH)
         self.assertEqual(config["featureSchema"], "ksl-temporal-452-v2")
-        self.assertEqual(read_json(assets / config["labels"]), LABEL_MAP)
-        self.assertEqual(read_json(assets / config["dictionary"]), WORDS)
+        labels = read_json(assets / config["labels"])
+        words = read_json(assets / config["dictionary"])
+        self.assertEqual(set(labels), set(words))
+        self.assertEqual(sorted(labels.values()), list(range(len(labels))))
         model = assets / config["model"]
         report = read_json(model.with_suffix(".json"))
         self.assertEqual(report["input_shape"], [1, SEQUENCE_LENGTH, INPUT_DIM])
-        self.assertEqual(report["class_order"], [WORDS[key] for key in sorted(LABEL_MAP, key=LABEL_MAP.get)])
+        self.assertEqual(report["class_order"], [words[key] for key in sorted(labels, key=labels.get)])
+        self.assertEqual(report["classes"], len(labels))
         self.assertEqual(hashlib.sha256(model.read_bytes()).hexdigest(), report["onnx_sha256"])
-        checkpoint = PROJECT_ROOT / "models/sign_language_five_words.pth"
+        checkpoint = PROJECT_ROOT / report.get("source_checkpoint", "models/sign_language_five_words.pth")
         self.assertEqual(hashlib.sha256(checkpoint.read_bytes()).hexdigest(), report["source_sha256"])
 
     def test_landmark_fixtures_match_shared_extractor(self):

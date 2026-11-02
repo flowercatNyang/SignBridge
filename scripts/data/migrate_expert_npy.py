@@ -11,7 +11,7 @@ import numpy as np
 
 from modules.migration import convert_expert_sequence
 from modules.preprocessing import load_manifest, validate_counts, write_manifest
-from modules.vocabulary import LABEL_MAP, NUM_CLASSES
+from modules.vocabulary import LABEL_MAP, NUM_CLASSES, PROCESSED_NAME
 from modules.paths import DATA_DIR
 
 
@@ -60,6 +60,9 @@ def migrate(x_path, y_path, processed_root, overwrite=False, source_map_path=Non
     source_labels = validate_inputs(features, raw_labels, source_map)
     if label_map != LABEL_MAP:
         raise ValueError(f"Expected active {NUM_CLASSES}-word processed map")
+    missing = sorted(set(LABEL_MAP) - set(source_map))
+    if missing:
+        raise ValueError(f"Expert source map is missing active classes: {missing}")
     remap = {source_map[key]: label for key, label in LABEL_MAP.items()}
 
     manifest_path = processed_root / "manifest.csv"
@@ -115,7 +118,7 @@ def main():
     # parser.add_argument("--processed-root", type=Path, default=Path("data/processed"))
     parser.add_argument("--x", type=Path, default=DATA_DIR / "processed" / "X_train.npy")
     parser.add_argument("--y", type=Path, default=DATA_DIR / "processed" / "y_train.npy")
-    parser.add_argument("--processed-root", type=Path, default=DATA_DIR / "processed_five")
+    parser.add_argument("--processed-root", type=Path, default=DATA_DIR / PROCESSED_NAME)
     parser.add_argument("--overwrite", action="store_true")
     parser.add_argument("--source-map", type=Path)
     args = parser.parse_args()

@@ -13,7 +13,7 @@ import numpy as np
 
 from .features import build_temporal_features, extract_keypoints
 from .utils import MockResults
-from .vocabulary import EXPECTED_PER_CLASS, LABEL_MAP, NUM_CLASSES, WORDS
+from .vocabulary import EXPECTED_PER_CLASS, LABEL_MAP, NUM_CLASSES, WORDS, PROCESSED_NAME, DISPLAY_LABELS
 from .paths import DATA_DIR, PROJECT_ROOT
 
 
@@ -101,7 +101,10 @@ def parse_team_filename(video_path):
         raise ValueError(f"Expected signer_[angle_]word: {video_path}")
     if not signer or not angle:
         raise ValueError(f"Empty signer or angle: {video_path}")
-    matches = [key for key, name in WORDS.items() if name == word]
+    if word == "위" and "WORD2576" in WORDS:
+        raise ValueError(f"Ambiguous 위: use WORD2100/위(내장) or WORD2576/위(방향): {video_path}")
+    matches = [word] if word in WORDS else [key for key, name in WORDS.items()
+                                          if name == word or DISPLAY_LABELS.get(key) == word]
     if len(matches) != 1:
         raise ValueError(f"Unknown active word {word!r}: {video_path}")
     return signer, angle, matches[0]
@@ -242,7 +245,7 @@ def main():
     parser.add_argument("--project-dir", type=Path, default=PROJECT_ROOT)
     parser.add_argument("--raw-root", type=Path, default=DATA_DIR / "raw_videos")
     # parser.add_argument("--processed-root", type=Path, default=Path("data/processed"))
-    parser.add_argument("--processed-root", type=Path, default=DATA_DIR / "processed_five")
+    parser.add_argument("--processed-root", type=Path, default=DATA_DIR / PROCESSED_NAME)
     parser.add_argument("--domain", choices=DOMAINS, action="append")
     parser.add_argument("--overwrite", action="store_true")
     parser.add_argument("--flat-team-root", type=Path)

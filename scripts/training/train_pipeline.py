@@ -20,7 +20,7 @@ from modules.data import (
 )
 from modules.features import INPUT_DIM
 from modules.models import MaskedSequenceAutoencoder, SignLanguageModel, SignerClassifier
-from modules.vocabulary import LABEL_MAP, NUM_CLASSES, WORDS
+from modules.vocabulary import LABEL_MAP, NUM_CLASSES, WORDS, PROCESSED_NAME
 from modules.paths import DATA_DIR, MODEL_DIR, REPORT_DIR
 
 
@@ -207,7 +207,7 @@ def save_final_checkpoint(path, model, held_out_signer, signer_map):
 def main():
     parser = argparse.ArgumentParser(description="Four-stage LOSO sign-language training")
     # parser.add_argument("--manifest", type=Path, default=Path("data/processed/manifest.csv"))
-    parser.add_argument("--manifest", type=Path, default=DATA_DIR / "processed_five" / "manifest.csv")
+    parser.add_argument("--manifest", type=Path, default=DATA_DIR / PROCESSED_NAME / "manifest.csv")
     parser.add_argument("--held-out-signer", required=True)
     parser.add_argument("--validation-signer", required=True)
     parser.add_argument("--output-dir", type=Path)
@@ -234,6 +234,13 @@ def main():
     # splits = make_loso_split(samples, args.held_out_signer, seed=args.seed)
     splits = make_loso_split(samples, args.held_out_signer, seed=args.seed,
                              validation_signer=args.validation_signer)
+    for name in ("expert_train", "validation", "team_validation", "held_out"):
+        missing = set(range(NUM_CLASSES)) - {sample.label for sample in splits[name]}
+        if missing:
+            raise ValueError(f"{name} is missing classes {sorted(missing)}; record every class for each evaluation signer")
+    team_training = {sample.label for sample in splits["adapt_train"] if sample.domain == "team"}
+    if team_training != set(range(NUM_CLASSES)):
+        raise ValueError("Training signers must cover every class after LOSO exclusions")
     signer_map = build_signer_map(splits["stage0"])
 
     output_dir = args.output_dir or MODEL_DIR / f"loso_{args.held_out_signer}"

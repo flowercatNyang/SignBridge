@@ -1,6 +1,7 @@
 import unittest
 import unicodedata
 from pathlib import Path
+from unittest.mock import patch
 
 import torch
 
@@ -11,6 +12,14 @@ from modules.vocabulary import LABEL_MAP, WORDS
 
 
 class FiveWordTest(unittest.TestCase):
+    def test_direction_and_stomach_use_distinct_ids(self):
+        with patch.dict(WORDS, {"WORD2576": "상부"}):
+            self.assertEqual(parse_team_filename(Path("사람_위(방향).mp4"))[2], "WORD2576")
+            self.assertEqual(parse_team_filename(Path("사람_위(내장).mp4"))[2], "WORD2100")
+            self.assertEqual(parse_team_filename(Path("사람_WORD2576.mp4"))[2], "WORD2576")
+            with self.assertRaisesRegex(ValueError, 'Ambiguous'):
+                parse_team_filename(Path("사람_위.mp4"))
+
     def test_frontal_word_and_angle_word_are_distinct(self):
         self.assertEqual(parse_team_filename(Path("사람_위.MOV")), ("사람", "정면", "WORD2100"))
         self.assertEqual(parse_team_filename(Path("사람_위_아래.mov")), ("사람", "위", "WORD2577"))
