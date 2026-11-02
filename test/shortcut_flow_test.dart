@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:testsign/src/demo_app.dart';
 import 'package:testsign/src/hand_camera/hand_camera.dart';
 import 'package:testsign/src/sign_commands.dart';
+import 'home_test_helpers.dart';
 
 void main() {
   testWidgets('Temporary permission dialog does not disable automatic actions',
@@ -18,6 +19,7 @@ void main() {
     addTearDown(() => tester.binding.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, null));
     await tester.pumpWidget(const SignBridgeApp());
+    await openShortcuts(tester);
     final predict =
         tester.widget<HandCamera>(find.byType(HandCamera)).onPrediction!;
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
@@ -49,6 +51,7 @@ void main() {
     addTearDown(() => tester.binding.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, null));
     await tester.pumpWidget(const SignBridgeApp());
+    await openShortcuts(tester);
     await tester.scrollUntilVisible(find.text('회사 위치 등록 / 변경'), 200);
     await tester.tap(find.text('회사 위치 등록 / 변경'));
     await tester.pumpAndSettle();
@@ -76,6 +79,7 @@ void main() {
     addTearDown(() => tester.binding.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, null));
     await tester.pumpWidget(const SignBridgeApp());
+    await openShortcuts(tester);
     final predict =
         tester.widget<HandCamera>(find.byType(HandCamera)).onPrediction!;
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);

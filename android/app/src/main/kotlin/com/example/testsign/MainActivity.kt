@@ -11,6 +11,8 @@ import android.media.AudioManager
 import android.net.Uri
 import android.provider.ContactsContract
 import android.provider.AlarmClock
+import android.app.KeyguardManager
+import android.widget.Toast
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodCall
@@ -20,6 +22,84 @@ import java.util.Calendar
 
 class MainActivity: FlutterActivity() {
     private var pipChannel: MethodChannel? = null
+    private var backgroundChannel: MethodChannel? = null
+    private var resumed = false
+    private val shortcutMethods = setOf("volumeUp", "volumeDown", "company", "mother", "emergency")
+
+    fun backgroundStateChanged() {
+        backgroundChannel?.invokeMethod("changed", RecognitionService.state(this))
+    }
+
+    override fun onResume() {
+        super.onResume()
+        resumed = true
+        RecognitionService.attach(this, true)
+        backgroundStateChanged()
+        consumeBackgroundCommand(intent)
+    }
+
+    override fun onPause() {
+        resumed = false
+        RecognitionService.attach(this, false)
+        RecognitionService.prepareNotifications(this)
+        super.onPause()
+    }
+
+    override fun onDestroy() {
+        RecognitionService.detached(this)
+        super.onDestroy()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (resumed) consumeBackgroundCommand(intent)
+    }
+
+    private fun consumeBackgroundCommand(intent: Intent?) {
+        val token = intent?.getStringExtra("backgroundCommandToken") ?: return
+        intent.removeExtra("backgroundCommandToken")
+        val command = RecognitionService.consumeCommand(token) ?: return
+        if (shortcutMethods.contains(command)) executeNativeCommand(command)
+    }
+
+    private fun executeNativeCommand(command: String) {
+        perform(MethodCall(command, null), object : MethodChannel.Result {
+            override fun success(result: Any?) {
+                Toast.makeText(this@MainActivity, result?.toString() ?: "실행 완료", Toast.LENGTH_SHORT).show()
+            }
+            override fun error(code: String, message: String?, details: Any?) {
+                Toast.makeText(this@MainActivity, message ?: "실행 실패", Toast.LENGTH_LONG).show()
+            }
+            override fun notImplemented() { }
+        })
+    }
+
+    fun executePipCommand(command: String): Boolean {
+        if (Build.VERSION.SDK_INT < 26 || !isInPictureInPictureMode ||
+            (getSystemService(KEYGUARD_SERVICE) as KeyguardManager).isKeyguardLocked) return false
+        executeNativeCommand(command)
+        return true
+    }
+
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        if (RecognitionService.isEnabled() && !enteringPip &&
+            getSharedPreferences("signbridge", MODE_PRIVATE).getBoolean("backgroundPip", true) &&
+            Build.VERSION.SDK_INT >= 26 && !isInPictureInPictureMode && HandCameraView.isCameraReady()) {
+            try {
+                enteringPip = true
+                HandCameraView.setCompact(true)
+                if (!enterPictureInPictureMode(PictureInPictureParams.Builder().setAspectRatio(Rational(3, 4)).build())) {
+                    enteringPip = false
+                    HandCameraView.setCompact(false)
+                }
+            } catch (error: Exception) {
+                enteringPip = false
+                HandCameraView.setCompact(false)
+            }
+        }
+    }
     private var enteringPip = false
     fun keepCameraInPip(): Boolean = enteringPip ||
         (Build.VERSION.SDK_INT >= 26 && isInPictureInPictureMode)
@@ -47,6 +127,51 @@ class MainActivity: FlutterActivity() {
     private var pending: Pair<MethodCall, MethodChannel.Result>? = null
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        RecognitionService.attach(this, false)
+        backgroundChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "signbridge/background")
+        backgroundChannel!!.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "state" -> result.success(RecognitionService.state(this))
+                "notificationSettings" -> {
+                    try {
+                        val settings = if (Build.VERSION.SDK_INT >= 26)
+                            Intent("android.settings.APP_NOTIFICATION_SETTINGS")
+                                .putExtra("android.provider.extra.APP_PACKAGE", packageName)
+                        else Intent("android.settings.APPLICATION_DETAILS_SETTINGS", Uri.parse("package:$packageName"))
+                        startActivity(settings)
+                        result.success(null)
+                    } catch (error: Exception) {
+                        result.error("settings_failed", "앱 알림 설정을 열 수 없습니다.", null)
+                    }
+                }
+                "setPip" -> {
+                    getSharedPreferences("signbridge", MODE_PRIVATE).edit()
+                        .putBoolean("backgroundPip", call.arguments == true).apply()
+                    result.success(RecognitionService.state(this))
+                }
+                "setEnabled" -> {
+                    if (call.arguments != true) {
+                        RecognitionService.disable(this)
+                        result.success(RecognitionService.state(this))
+                    } else if (!resumed || !HandCameraView.isCameraReady()) {
+                        result.error("camera_unavailable", "앱에서 카메라 영상이 나온 뒤 백그라운드 인식을 켜 주세요.", null)
+                    } else if (!getSystemService(android.app.NotificationManager::class.java).areNotificationsEnabled()) {
+                        result.error("notifications_disabled", "알림 설정에서 SignBridge 알림을 허용해 주세요. 인식 중지와 전화·지도 실행에 필요합니다.", null)
+                    } else {
+                        RecognitionService.enable(this, RecognitionService.Ready { error ->
+                            if (error == null) result.success(RecognitionService.state(this))
+                            else result.error("background_failed", error, null)
+                        })
+                    }
+                }
+                "hide" -> {
+                    if (!RecognitionService.isEnabled()) result.error("disabled", "백그라운드 인식을 먼저 켜 주세요.", null)
+                    else result.success(moveTaskToBack(true))
+                }
+                "resetGate" -> { RecognitionService.resetGate(); result.success(null) }
+                else -> result.notImplemented()
+            }
+        }
         pipChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "signbridge/pip")
         pipChannel!!.setMethodCallHandler { call, result ->
             when (call.method) {
@@ -94,6 +219,7 @@ class MainActivity: FlutterActivity() {
 
     private fun perform(call: MethodCall, result: MethodChannel.Result) {
         try {
+            if (shortcutMethods.contains(call.method)) RecognitionService.recordCommand(call.method)
             val prefs = getSharedPreferences("signbridge", MODE_PRIVATE)
             when (call.method) {
                 "loadCompany" -> result.success(prefs.getString("company", ""))

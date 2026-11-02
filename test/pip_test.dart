@@ -9,6 +9,7 @@ import 'package:testsign/src/sign_commands.dart';
 void main() {
   const pip = MethodChannel('signbridge/pip');
   const actions = MethodChannel('signbridge/actions');
+  const background = MethodChannel('signbridge/background');
 
   Future<void> changePip(WidgetTester tester, bool active) async {
     await tester.binding.defaultBinaryMessenger.handlePlatformMessage(
@@ -20,6 +21,14 @@ void main() {
   }
 
   void mockViews(WidgetTester tester) {
+    var enabled = false, pipEnabled = true;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(background,
+        (call) async {
+      if (call.method == 'setEnabled') enabled = call.arguments == true;
+      if (call.method == 'setPip') pipEnabled = call.arguments == true;
+      if (call.method == 'hide') return true;
+      return {'enabled': enabled, 'pipEnabled': pipEnabled};
+    });
     tester.binding.defaultBinaryMessenger
         .setMockMethodCallHandler(SystemChannels.platform_views, (call) async {
       if (call.method == 'create') return 1;
@@ -34,13 +43,16 @@ void main() {
     addTearDown(() {
       tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(pip, null);
       tester.binding.defaultBinaryMessenger
+          .setMockMethodCallHandler(background, null);
+      tester.binding.defaultBinaryMessenger
           .setMockMethodCallHandler(actions, null);
       tester.binding.defaultBinaryMessenger
           .setMockMethodCallHandler(SystemChannels.platform_views, null);
     });
   }
 
-  testWidgets('PiP keeps camera and recognition active until hidden',
+  testWidgets(
+      'PiP preserves the camera and leaves background actions to native service',
       (tester) async {
     mockViews(tester);
     final calls = <String>[];
@@ -73,11 +85,11 @@ void main() {
         tester.widget<HandCamera>(find.byType(HandCamera)).onPrediction!;
     predict(const SignPrediction('위', .99));
     await tester.pumpAndSettle();
-    expect(calls, ['volumeUp']);
+    expect(calls, isEmpty);
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
     predict(const SignPrediction('아래', .99));
     await tester.pumpAndSettle();
-    expect(calls, ['volumeUp']);
+    expect(calls, isEmpty);
     await changePip(tester, false);
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     await tester.pumpAndSettle();
@@ -91,13 +103,125 @@ void main() {
     await tester.pumpWidget(const SignBridgeApp());
     await openShortcuts(tester);
     await tester.pumpAndSettle();
-    await tester.tap(find.byType(Switch));
+    final developer = find.widgetWithText(SwitchListTile, '개발자 모드');
+    await tester.ensureVisible(developer);
+    await tester.tap(developer);
     await tester.pumpAndSettle();
     expect(find.byType(HandCamera), findsNothing);
+    await tester.scrollUntilVisible(find.text('백그라운드 실행'), -200);
     final button = find.ancestor(
         of: find.text('백그라운드 실행'),
         matching: find.byWidgetPredicate((widget) => widget is ElevatedButton));
     expect(tester.widget<ElevatedButton>(button).onPressed, isNull);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.android));
+
+  testWidgets(
+      'PiP off starts the service and hides the app without entering PiP',
+      (tester) async {
+    mockViews(tester);
+    var enabled = false, pipEnabled = true;
+    final calls = <String>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(background,
+        (call) async {
+      calls.add(call.method);
+      if (call.method == 'setEnabled') enabled = call.arguments == true;
+      if (call.method == 'setPip') pipEnabled = call.arguments == true;
+      if (call.method == 'hide') return true;
+      return {'enabled': enabled, 'pipEnabled': pipEnabled};
+    });
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(pip,
+        (call) async {
+      calls.add('pip:${call.method}');
+      return true;
+    });
+    await tester.pumpWidget(const SignBridgeApp());
+    await openShortcuts(tester);
+    await tester.tap(find.widgetWithText(SwitchListTile, '백그라운드에서 PiP 표시'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('백그라운드 실행'));
+    await tester.pumpAndSettle();
+    expect(enabled, isTrue);
+    expect(pipEnabled, isFalse);
+    expect(calls, containsAllInOrder(['setPip', 'setEnabled', 'hide']));
+    expect(calls, isNot(contains('pip:enter')));
+    expect(find.byType(AppBar), findsOneWidget);
+
+    // The notification stop button updates the switch through the service event.
+    await tester.binding.defaultBinaryMessenger.handlePlatformMessage(
+        background.name,
+        const StandardMethodCodec().encodeMethodCall(const MethodCall(
+            'changed', {'enabled': false, 'pipEnabled': false})),
+        (_) {});
+    await tester.pumpAndSettle();
+    expect(
+        tester
+            .widget<SwitchListTile>(
+                find.widgetWithText(SwitchListTile, '백그라운드 인식'))
+            .value,
+        isFalse);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.android));
+
+  testWidgets(
+      'Service start failure keeps background off and does not enter PiP',
+      (tester) async {
+    mockViews(tester);
+    var pipCalls = 0;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(background,
+        (call) async {
+      if (call.method == 'setEnabled') {
+        throw PlatformException(
+            code: 'camera_unavailable', message: '카메라 준비 필요');
+      }
+      return {'enabled': false, 'pipEnabled': true};
+    });
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(pip,
+        (call) async {
+      pipCalls++;
+      return true;
+    });
+    await tester.pumpWidget(const SignBridgeApp());
+    await openShortcuts(tester);
+    await tester.tap(find.text('백그라운드 실행'));
+    await tester.pumpAndSettle();
+    expect(pipCalls, 0);
+    expect(find.text('카메라 준비 필요'), findsOneWidget);
+    expect(
+        tester
+            .widget<SwitchListTile>(
+                find.widgetWithText(SwitchListTile, '백그라운드 인식'))
+            .value,
+        isFalse);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.android));
+
+  testWidgets(
+      'Returning from background does not repeat the service last command',
+      (tester) async {
+    mockViews(tester);
+    final calls = <String>[];
+    String? lastCommand;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        background,
+        (call) async =>
+            {'enabled': true, 'pipEnabled': false, 'lastCommand': lastCommand});
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(actions,
+        (call) async {
+      calls.add(call.method);
+      return '완료';
+    });
+    await tester.pumpWidget(const SignBridgeApp());
+    await openShortcuts(tester);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    lastCommand = 'volumeUp';
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+    final predict =
+        tester.widget<HandCamera>(find.byType(HandCamera)).onPrediction!;
+    predict(const SignPrediction('위', .99));
+    await tester.pumpAndSettle();
+    expect(calls, isEmpty);
+    predict(const SignPrediction('아래', .99));
+    await tester.pumpAndSettle();
+    expect(calls, ['volumeDown']);
   }, variant: TargetPlatformVariant.only(TargetPlatform.android));
 
   for (final failure in [false, true]) {

@@ -93,12 +93,10 @@ class _DemoHomeState extends State<DemoHome> {
   Widget build(BuildContext context) => Scaffold(
       appBar: AppBar(
           title: Row(children: [
-            Container(
-                padding: const EdgeInsets.all(7),
-                decoration: BoxDecoration(
-                    color: primary, borderRadius: BorderRadius.circular(12)),
-                child:
-                    const Icon(Icons.pan_tool, color: Colors.white, size: 22)),
+            ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.asset('assets/branding/signbridge_sb.png',
+                    width: 36, height: 36, semanticLabel: 'SignBridge 로고')),
             const SizedBox(width: 10),
             Expanded(
                 child: FittedBox(
@@ -164,13 +162,6 @@ class _DemoHomeState extends State<DemoHome> {
             style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
         const SizedBox(height: 4),
         description('어떤 수화를 실시간으로 인식할까요?'),
-        gap,
-        modeCard(
-            false, '스마트 기기 제어', '스마트폰과 웨어러블을 연결하는 일상', Icons.devices, const [
-          Badge('연결 기기 보기', icon: Icons.devices),
-          Badge('스마트링', icon: Icons.radio_button_unchecked),
-          Badge('이어폰 · 워치', icon: Icons.watch)
-        ]),
         gap,
         modeCard(true, '단축키 실행', '수어로 전화·길찾기·볼륨 조절', Icons.apps, const [
           Badge('119 · 엄마에게 전화', icon: Icons.phone_in_talk, color: danger),
@@ -242,7 +233,7 @@ class _DemoHomeState extends State<DemoHome> {
                       TextButton(
                           onPressed: emergency
                               ? () => message('단축키 안내',
-                                  '아프다: 119 발신 화면\n회사: 등록한 회사로 길찾기\n엄마: 연락처의 엄마에게 전화\n위 / 아래: 미디어 볼륨 조절\n\n단축키 실행 화면에서 PiP 백그라운드 실행을 사용할 수 있습니다.')
+                                  '아프다: 119 발신 화면\n회사: 등록한 회사로 길찾기\n엄마: 연락처의 엄마에게 전화\n위 / 아래: 미디어 볼륨 조절\n\n단축키 실행 화면에서 백그라운드 인식과 PiP 표시를 설정할 수 있습니다. 창이 없을 때 전화·길찾기는 실행 알림을 눌러 주세요.')
                               : openGuide,
                           child: Row(children: [
                             Icon(emergency ? Icons.apps : Icons.help_outline,

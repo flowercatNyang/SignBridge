@@ -6,38 +6,24 @@ import android.app.Application;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.*;
-import android.hardware.Camera;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import android.os.SystemClock;
 import android.view.View;
 import android.widget.*;
-import com.google.mediapipe.framework.image.BitmapImageBuilder;
-import com.google.mediapipe.framework.image.MPImage;
 import com.google.mediapipe.tasks.components.containers.NormalizedLandmark;
-import com.google.mediapipe.tasks.core.BaseOptions;
-import com.google.mediapipe.tasks.vision.core.RunningMode;
-import com.google.mediapipe.tasks.vision.handlandmarker.HandLandmarker;
 import com.google.mediapipe.tasks.vision.handlandmarker.HandLandmarkerResult;
-import com.google.mediapipe.tasks.vision.poselandmarker.PoseLandmarker;
-import com.google.mediapipe.tasks.vision.poselandmarker.PoseLandmarkerResult;
 import io.flutter.plugin.common.StandardMessageCodec;
 import io.flutter.plugin.common.BinaryMessenger;
 import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugin.platform.PlatformView;
 import io.flutter.plugin.platform.PlatformViewFactory;
-import java.io.ByteArrayOutputStream;
 import java.lang.ref.WeakReference;
 import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicBoolean;
 
-/** Native, bounded-frame camera pipeline; inference never runs on the UI thread. */
-@SuppressWarnings("deprecation")
+/** Native camera presentation; inference survives view disposal in CameraPipeline. */
 public final class HandCameraView implements PlatformView, Application.ActivityLifecycleCallbacks {
     public static final class Factory extends PlatformViewFactory {
         private final Activity activity;
@@ -50,15 +36,17 @@ public final class HandCameraView implements PlatformView, Application.ActivityL
     private static WeakReference<HandCameraView> active = new WeakReference<>(null);
     public static boolean isCameraReady() {
         HandCameraView view = active.get();
-        return view != null && !view.disposed && !view.paused && view.camera != null;
+        return view != null && !view.disposed && !view.paused && view.pipeline.ready();
     }
     public static void setCompact(boolean compact) {
         HandCameraView view = active.get();
         if (view == null || view.disposed) return;
         for (int i = 0; i < view.root.getChildCount(); i++) {
             View child = view.root.getChildAt(i);
-            if (child != view.preview) child.setVisibility(compact ? View.GONE : View.VISIBLE);
+            if (child != view.preview && child != view.translation) child.setVisibility(compact ? View.GONE : View.VISIBLE);
         }
+        view.translation.setTextSize(compact ? 11 : 18);
+        view.translation.setPadding(8, compact ? 2 : 12, 8, compact ? 2 : 12);
     }
     public static void permissionChanged() {
         HandCameraView view = active.get();
@@ -73,31 +61,52 @@ public final class HandCameraView implements PlatformView, Application.ActivityL
     private final FrameView preview;
     private final TextView status;
     private final TextView translation;
-    private final Handler main = new Handler(Looper.getMainLooper());
-    private final ExecutorService worker = Executors.newSingleThreadExecutor();
-    private final AtomicBoolean busy = new AtomicBoolean();
-    private Camera camera;
-    private SurfaceTexture texture;
-    // Only touched on worker, including close; queued cleanup follows pending inference.
-    private HandLandmarker landmarker;
-    private PoseLandmarker poseLandmarker;
-    private SignTranslator translator;
-    private boolean front = true;
-    private boolean disposed;
-    private boolean paused;
-    private int generation;
-    private long lastFrame;
-
+    private final CameraPipeline pipeline;
+    private boolean disposed, paused;
+    private String lastDisplay = "단어 — · 신뢰도 —";
+    private final CameraPipeline.Listener listener = new CameraPipeline.Listener() {
+        @Override public void frame(Bitmap frame, HandLandmarkerResult hands, boolean mirror,
+                                    String display, boolean absent, double fps, boolean handledByService) {
+            if (disposed) return;
+            preview.frame = frame;
+            preview.result = hands;
+            preview.mirror = mirror;
+            preview.invalidate();
+            if (display != null) lastDisplay = display;
+            if (absent) lastDisplay = "단어 — · 신뢰도 —";
+            String metrics = lastDisplay + String.format(java.util.Locale.US, "  |  %.1f FPS", fps);
+            if (!translation.getText().toString().equals(metrics)) translation.setText(metrics);
+            String tracking = absent ? "손을 화면 안에 보여 주세요." : "손 " + hands.landmarks().size() + "개 추적 중";
+            if (!status.getText().toString().equals(tracking)) status.setText(tracking);
+            if (display != null || absent) {
+                Map<String,Object> message = new HashMap<>();
+                message.put("display", display);
+                message.put("handsAbsent", absent);
+                message.put("handledByService", handledByService);
+                predictions.invokeMethod("prediction", message);
+            }
+        }
+        @Override public void status(String message) {
+            preview.frame = null;
+            preview.result = null;
+            preview.invalidate();
+            translation.setText(message + "  |  0.0 FPS");
+            status.setText(message);
+        }
+    };
     private HandCameraView(Activity activity, MethodChannel predictions) {
         this.activity = activity;
         this.predictions = predictions;
         active = new WeakReference<>(this);
+        pipeline = CameraPipeline.get(activity);
         root = new LinearLayout(activity);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundColor(Color.rgb(18, 25, 42));
         translation = new TextView(activity);
         translation.setTextColor(Color.rgb(66, 235, 182));
         translation.setTextSize(18);
+        translation.setMaxLines(2);
+        translation.setEllipsize(android.text.TextUtils.TruncateAt.END);
         translation.setPadding(16, 12, 16, 12);
         translation.setText("수화 번역\n카메라를 준비하는 중…");
         translation.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
@@ -117,232 +126,54 @@ public final class HandCameraView implements PlatformView, Application.ActivityL
         buttons.addView(retry, new LinearLayout.LayoutParams(0, -2, 1));
         Button flip = new Button(activity);
         flip.setText("카메라 전환");
-        flip.setOnClickListener(v -> { front = !front; start(); });
+        flip.setOnClickListener(v -> { pipeline.flip(); });
         buttons.addView(flip, new LinearLayout.LayoutParams(0, -2, 1));
         root.addView(buttons);
         activity.getApplication().registerActivityLifecycleCallbacks(this);
-        main.post(this::start);
+        pipeline.attach(listener);
+        new Handler(Looper.getMainLooper()).post(this::start);
+        setCompact(((MainActivity) activity).keepCameraInPip());
     }
 
     private void start() {
         if (disposed || paused) return;
-        stop();
         if (activity.checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-            status.setText("카메라 권한을 허용해 주세요.");
             activity.requestPermissions(new String[]{Manifest.permission.CAMERA}, 4102);
             return;
         }
-        int token = generation;
-        status.setText("손 인식 모델을 불러오는 중…");
-        worker.execute(() -> {
-            String loadingStage = "손 추적 모델";
-            try {
-                landmarker = HandLandmarker.createFromOptions(activity,
-                    HandLandmarker.HandLandmarkerOptions.builder()
-                        .setBaseOptions(BaseOptions.builder()
-                            .setModelAssetPath("flutter_assets/assets/hand_landmarker.task").build())
-                        .setRunningMode(RunningMode.VIDEO).setNumHands(2)
-                        .setMinHandDetectionConfidence(0.5f)
-                        .setMinHandPresenceConfidence(0.5f)
-                        .setMinTrackingConfidence(0.5f).build());
-                loadingStage = "자세 추적 모델";
-                poseLandmarker = PoseLandmarker.createFromOptions(activity,
-                    PoseLandmarker.PoseLandmarkerOptions.builder()
-                        .setBaseOptions(BaseOptions.builder()
-                            .setModelAssetPath("flutter_assets/assets/pose_landmarker_lite.task").build())
-                        .setRunningMode(RunningMode.VIDEO).setNumPoses(1)
-                        .setMinPoseDetectionConfidence(0.5f)
-                        .setMinPosePresenceConfidence(0.5f)
-                        .setMinTrackingConfidence(0.5f).build());
-                loadingStage = "기본 수어 모델 (GRU)";
-                translator = new SignTranslator(activity.getAssets());
-                main.post(() -> {
-                    if (valid(token)) {
-                        translation.setText("수어 모델 로딩 완료\n동작을 보여 주세요.");
-                        openCamera(token);
-                    }
-                });
-            } catch (Exception | LinkageError e) {
-                fail(token, loadingStage + " 로딩 실패. 다시 시도해 주세요.", e);
-            }
-        });
+        pipeline.attach(listener);
+        pipeline.start();
     }
-
-    private boolean valid(int token) { return !disposed && !paused && token == generation; }
-
-    private void openCamera(int token) {
-        try {
-            int selected = -1;
-            Camera.CameraInfo info = new Camera.CameraInfo();
-            for (int id = 0; id < Camera.getNumberOfCameras(); id++) {
-                Camera.getCameraInfo(id, info);
-                if (info.facing == (front ? Camera.CameraInfo.CAMERA_FACING_FRONT : Camera.CameraInfo.CAMERA_FACING_BACK)) { selected = id; break; }
-            }
-            if (selected < 0) throw new IllegalStateException("Requested camera unavailable");
-            Camera.getCameraInfo(selected, info);
-            final boolean mirror = info.facing == Camera.CameraInfo.CAMERA_FACING_FRONT;
-            final int sensorOrientation = info.orientation;
-            camera = Camera.open(selected);
-            camera.setErrorCallback((code, source) -> fail(token,
-                "카메라 연결이 종료되었습니다. 다시 시도해 주세요.",
-                new IllegalStateException("Camera error " + code)));
-            Camera.Parameters parameters = camera.getParameters();
-            Camera.Size size = parameters.getSupportedPreviewSizes().get(0);
-            for (Camera.Size candidate : parameters.getSupportedPreviewSizes()) {
-                if (Math.abs(candidate.width * candidate.height - 640 * 480) < Math.abs(size.width * size.height - 640 * 480)) size = candidate;
-            }
-            final int width = size.width, height = size.height;
-            parameters.setPreviewSize(width, height);
-            parameters.setPreviewFormat(ImageFormat.NV21);
-            List<String> focus = parameters.getSupportedFocusModes();
-            if (focus != null && focus.contains(Camera.Parameters.FOCUS_MODE_CONTINUOUS_VIDEO)) parameters.setFocusMode(Camera.Parameters.FOCUS_MODE_CONTINUOUS_VIDEO);
-            camera.setParameters(parameters);
-            texture = new SurfaceTexture(0);
-            camera.setPreviewTexture(texture);
-            camera.setPreviewCallback((bytes, source) -> {
-                long now = SystemClock.uptimeMillis();
-                if (!valid(token) || now - lastFrame < 66 || !busy.compareAndSet(false, true)) return;
-                lastFrame = now;
-                byte[] frame = bytes.clone();
-                int display = activity.getWindowManager().getDefaultDisplay().getRotation() * 90;
-                final int rotation = mirror ? (sensorOrientation + display) % 360 : (sensorOrientation - display + 360) % 360;
-                worker.execute(() -> process(frame, width, height, rotation, mirror, token, now));
-            });
-            camera.startPreview();
-            status.setText("손을 카메라에 보여 주세요.");
-        } catch (Exception e) { fail(token, "카메라를 열 수 없습니다. 권한과 다른 앱의 카메라 사용을 확인해 주세요.", e); }
-    }
-
-    private void process(byte[] bytes, int width, int height, int rotation, boolean mirror, int token, long timestamp) {
-        try {
-            // Infer on the unmirrored image, matching the supplied Python pipeline.
-            ByteArrayOutputStream jpeg = new ByteArrayOutputStream();
-            new YuvImage(bytes, ImageFormat.NV21, width, height, null)
-                .compressToJpeg(new Rect(0, 0, width, height), 85, jpeg);
-            byte[] encoded = jpeg.toByteArray();
-            Bitmap raw = BitmapFactory.decodeByteArray(encoded, 0, encoded.length);
-            Matrix transform = new Matrix();
-            transform.postRotate(rotation);
-            Bitmap frame = Bitmap.createBitmap(raw, 0, 0, width, height, transform, true);
-            if (frame != raw) raw.recycle();
-            // MPImage.close() recycles its bitmap. Keep the displayed frame independently owned.
-            MPImage image = new BitmapImageBuilder(frame.copy(Bitmap.Config.ARGB_8888, false)).build();
-            HandLandmarkerResult result;
-            String translated;
-            boolean handsAbsent;
-            try {
-                result = landmarker.detectForVideo(image, timestamp);
-                PoseLandmarkerResult pose = poseLandmarker.detectForVideo(image, timestamp);
-                handsAbsent = result.landmarks().isEmpty();
-                if (handsAbsent || pose.landmarks().isEmpty()) {
-                    translator.missing(timestamp);
-                    translated = "양손과 어깨가 보이도록 동작해 주세요";
-                } else {
-                    float[][] right = null, left = null;
-                    for (int i=0;i<result.landmarks().size();i++) {
-                        String side = result.handedness().get(i).get(0).categoryName();
-                        if ("Right".equals(side)) right = coordinates(result.landmarks().get(i));
-                        if ("Left".equals(side)) left = coordinates(result.landmarks().get(i));
-                    }
-                    translated = translator.add(SignFeatures.extract(right,left,
-                        coordinates(pose.landmarks().get(0)),frame.getWidth(),frame.getHeight()),timestamp,right!=null,left!=null);
-                }
-            }
-            finally { image.close(); }
-            main.post(() -> {
-                if (!valid(token)) { frame.recycle(); return; }
-                preview.frame = frame;
-                preview.result = result;
-                preview.mirror = mirror;
-                preview.invalidate();
-                if (translated != null) {
-                    Map<String,Object> message = new HashMap<>();
-                    message.put("display", translated);
-                    message.put("handsAbsent", handsAbsent);
-                    predictions.invokeMethod("prediction", message);
-                    String content = "수화 번역\n" + translated;
-                    if (!translation.getText().toString().equals(content)) translation.setText(content);
-                }
-                int count = result.landmarks().size();
-                String text = count == 0 ? "손을 찾는 중 · 손을 화면 안에 보여 주세요." : "손 " + count + "개 감지 · 손마다 관절점 21개 추적 중";
-                if (!status.getText().toString().equals(text)) status.setText(text);
-            });
-        } catch (Exception e) { fail(token, "손 인식 중 오류가 발생했습니다. 다시 시도해 주세요.", e); }
-        finally { busy.set(false); }
-    }
-
-    private static float[][] coordinates(List<NormalizedLandmark> points) {
-        float[][] values = new float[points.size()][3];
-        for (int i=0;i<points.size();i++) {
-            NormalizedLandmark p=points.get(i);
-            values[i]=new float[]{p.x(),p.y(),p.z()};
-        }
-        return values;
-    }
-
-    private void fail(int token, String message, Throwable error) {
-        android.util.Log.e("HandCamera", message, error);
-        String detail = error.getClass().getSimpleName() + ": " + String.valueOf(error.getMessage());
-        main.post(() -> { if (valid(token)) { stop(); status.setText(message + "\n" + detail); } });
-    }
-
-    private void stop() {
-        generation++;
-        if (camera != null) {
-            camera.setPreviewCallback(null);
-            camera.stopPreview();
-            camera.release();
-            camera = null;
-        }
-        if (texture != null) { texture.release(); texture = null; }
+    private void suspend() {
+        paused = true;
+        pipeline.detach(listener);
         preview.frame = null;
         preview.result = null;
         preview.invalidate();
-        translation.setText("수화 번역\n카메라 시작 후 동작을 보여 주세요");
-        worker.execute(() -> {
-            if (landmarker != null) { landmarker.close(); landmarker = null; }
-            if (poseLandmarker != null) { poseLandmarker.close(); poseLandmarker = null; }
-            if (translator != null) {
-                try { translator.close(); } catch (Exception e) { android.util.Log.e("HandCamera", "Close translator", e); }
-                translator = null;
-            }
-        });
+        if (!RecognitionService.isEnabled() && !pipeline.hasListeners()) pipeline.stop();
     }
-
     @Override public View getView() { return root; }
     @Override public void dispose() {
         if (disposed) return;
         disposed = true;
-        stop();
-        worker.shutdown();
+        suspend();
         activity.getApplication().unregisterActivityLifecycleCallbacks(this);
         if (active.get() == this) active.clear();
     }
     @Override public void onActivityPaused(Activity a) {
-        if (a == activity && !((MainActivity) activity).keepCameraInPip()) {
-            paused = true; stop(); status.setText("카메라 일시 중지");
-        }
+        if (a == activity && !((MainActivity) activity).keepCameraInPip()) suspend();
     }
     @Override public void onActivityResumed(Activity a) {
         if (a != activity || disposed) return;
         paused = false;
-        // Returning from a denied permission dialog must not immediately request it again.
-        if (activity.checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
-            if (camera == null) start();
-        }
-        else status.setText("카메라 권한을 허용한 뒤 시작 버튼을 눌러 주세요.");
+        if (activity.checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) start();
     }
     @Override public void onActivityDestroyed(Activity a) { if (a == activity) dispose(); }
     @Override public void onActivityCreated(Activity a, Bundle b) { }
     @Override public void onActivityStarted(Activity a) {
-        if (a == activity && ((MainActivity) activity).keepCameraInPip()) {
-            paused = false;
-            if (camera == null && activity.checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) start();
-        }
+        if (a == activity && ((MainActivity) activity).keepCameraInPip()) { paused = false; start(); }
     }
-    @Override public void onActivityStopped(Activity a) {
-        if (a == activity && !disposed) { paused = true; stop(); }
-    }
+    @Override public void onActivityStopped(Activity a) { if (a == activity && !disposed) suspend(); }
     @Override public void onActivitySaveInstanceState(Activity a, Bundle b) { }
 
     private static final class FrameView extends View {

@@ -42,6 +42,12 @@ class CommandGate {
     _absentSince = null;
   }
 
+  // Synchronize commands executed by the Android service while Flutter was hidden.
+  void restoreLastCommand(String? command) {
+    _lastCommand = command;
+    _absentSince = null;
+  }
+
   String? accept(SignPrediction prediction, {DateTime? timestamp}) {
     if (!prediction.confidence.isFinite ||
         prediction.confidence < 0 ||

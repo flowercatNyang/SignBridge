@@ -24,6 +24,11 @@ class _TranslationPageState extends State<TranslationPage>
   final _actions = DeviceActions();
   final _developerGloss = <String>[];
   static const _pipChannel = MethodChannel('signbridge/pip');
+  static const _backgroundChannel = MethodChannel('signbridge/background');
+  bool _backgroundEnabled = false, _pipEnabled = true, _backgroundBusy = false;
+  bool _backgroundSyncing = false;
+  bool get _android =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
   final _cameraKey = GlobalKey();
   bool _pipActive = false, _pipEntering = false, _pipLayout = false;
   bool _visible = true;
@@ -45,24 +50,128 @@ class _TranslationPageState extends State<TranslationPage>
         _pipLayout = _pipActive;
       });
     });
+    if (_android) {
+      _backgroundChannel.setMethodCallHandler((call) async {
+        if (call.method == 'changed') _applyBackgroundState(call.arguments);
+      });
+      _loadBackgroundState(restoreGate: true);
+    }
+  }
+
+  void _applyBackgroundState(dynamic value, {bool restoreGate = false}) {
+    if (!mounted || value is! Map) return;
+    setState(() {
+      _backgroundEnabled = value['enabled'] == true;
+      _pipEnabled = value['pipEnabled'] != false;
+      if (restoreGate) {
+        _gate.restoreLastCommand(value['lastCommand'] as String?);
+      }
+      if (value['status'] is String && _backgroundEnabled) {
+        _status = value['status'] as String;
+      }
+    });
+  }
+
+  Future<void> _loadBackgroundState({bool restoreGate = false}) async {
+    if (restoreGate) _backgroundSyncing = true;
+    try {
+      _applyBackgroundState(await _backgroundChannel.invokeMethod('state'),
+          restoreGate: restoreGate);
+    } on MissingPluginException {
+      // Other platforms do not expose the Android service.
+    } on PlatformException catch (error) {
+      if (mounted) setState(() => _pipError = error.message);
+    } finally {
+      _backgroundSyncing = false;
+    }
+  }
+
+  Future<bool> _setBackground(bool enabled) async {
+    if (_backgroundBusy) return false;
+    setState(() {
+      _backgroundBusy = true;
+      _pipError = null;
+    });
+    try {
+      final state =
+          await _backgroundChannel.invokeMethod('setEnabled', enabled);
+      _applyBackgroundState(state);
+      return mounted && _backgroundEnabled == enabled;
+    } on PlatformException catch (error) {
+      if (mounted) {
+        setState(() => _pipError = error.message ?? '백그라운드 인식 설정 실패');
+      }
+      return false;
+    } on MissingPluginException {
+      if (mounted) setState(() => _pipError = '백그라운드 인식은 Android 앱에서 지원합니다.');
+      return false;
+    } finally {
+      if (mounted) setState(() => _backgroundBusy = false);
+    }
+  }
+
+  Future<void> _setPip(bool enabled) async {
+    try {
+      _applyBackgroundState(
+          await _backgroundChannel.invokeMethod('setPip', enabled));
+    } on PlatformException catch (error) {
+      if (mounted) setState(() => _pipError = error.message);
+    } on MissingPluginException {
+      if (mounted) setState(() => _pipError = 'PiP 설정은 Android 앱에서 지원합니다.');
+    }
+  }
+
+  Future<void> _runBackground() async {
+    if (!_backgroundEnabled && !await _setBackground(true)) return;
+    if (!mounted) return;
+    if (_pipEnabled) {
+      await _enterPip();
+    } else {
+      try {
+        final hidden =
+            await _backgroundChannel.invokeMethod<bool>('hide') ?? false;
+        if (!hidden && mounted) {
+          setState(() => _pipError = '백그라운드로 전환하지 못했습니다. 홈 버튼을 눌러 주세요.');
+        }
+      } on PlatformException catch (error) {
+        if (mounted) setState(() => _pipError = error.message);
+      }
+    }
+  }
+
+  Future<void> _notificationSettings() async {
+    try {
+      await _backgroundChannel.invokeMethod('notificationSettings');
+    } on PlatformException catch (error) {
+      if (mounted) setState(() => _pipError = error.message);
+    } on MissingPluginException {
+      if (mounted) setState(() => _pipError = 'Android 설정에서 앱 알림을 허용해 주세요.');
+    }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance!.removeObserver(this);
     _pipChannel.setMethodCallHandler(null);
+    if (_android) _backgroundChannel.setMethodCallHandler(null);
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     _foreground = state == AppLifecycleState.resumed;
+    if (_foreground && _android) {
+      _loadBackgroundState(restoreGate: true);
+    }
     _visible = state == AppLifecycleState.resumed ||
         state == AppLifecycleState.inactive;
     if (!_visible) _pipActive = false;
     if (!_busy) {
-      _status =
-          _foreground ? '자동 실행 대기 중 · 수어를 보여 주세요.' : '앱으로 돌아오면 자동 실행을 계속합니다.';
+      _status = _foreground
+          ? '자동 실행 대기 중 · 수어를 보여 주세요.'
+          : _backgroundEnabled
+              ? '백그라운드에서 수어를 인식하고 있습니다.'
+              : '앱으로 돌아오면 자동 실행을 계속합니다.';
     }
     if (mounted) setState(() {});
   }
@@ -71,7 +180,8 @@ class _TranslationPageState extends State<TranslationPage>
     if (_assistantOpen ||
         _developerMode ||
         _busy ||
-        !(_foreground || (_pipActive && _visible)) ||
+        _backgroundSyncing ||
+        !_foreground ||
         _pipEntering ||
         ModalRoute.of(context)?.isCurrent != true) {
       return;
@@ -104,6 +214,9 @@ class _TranslationPageState extends State<TranslationPage>
   }
 
   void _restartRecognition() {
+    if (_android) {
+      _backgroundChannel.invokeMethod('resetGate').catchError((_) => null);
+    }
     setState(() {
       _gate.reset();
       _translation = '';
@@ -116,6 +229,8 @@ class _TranslationPageState extends State<TranslationPage>
       String initialGloss = '',
       bool developerMode = false}) async {
     if (_busy || _assistantOpen) return;
+    if (_backgroundEnabled && !await _setBackground(false)) return;
+    if (!mounted) return;
     if (fromDrawer) Navigator.pop(context);
     setState(() {
       _assistantOpen = true;
@@ -180,6 +295,8 @@ class _TranslationPageState extends State<TranslationPage>
   }
 
   Future<void> _openMenuPage(Widget page) async {
+    if (_backgroundEnabled && !await _setBackground(false)) return;
+    if (!mounted) return;
     Navigator.pop(context);
     setState(() {
       _assistantOpen = true;
@@ -298,33 +415,65 @@ class _TranslationPageState extends State<TranslationPage>
               if (!kIsWeb &&
                   defaultTargetPlatform == TargetPlatform.android) ...[
                 const SizedBox(height: 12),
+                SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('백그라운드 인식'),
+                    subtitle: const Text('다른 앱을 사용해도 인식 계속 · 알림에서 중지'),
+                    value: _backgroundEnabled,
+                    onChanged: _busy ||
+                            _developerMode ||
+                            _backgroundBusy ||
+                            _pipEntering
+                        ? null
+                        : (value) => _setBackground(value)),
+                SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('백그라운드에서 PiP 표시'),
+                    subtitle: const Text('끄면 작은 창 없이 인식합니다'),
+                    value: _pipEnabled,
+                    onChanged:
+                        _backgroundBusy || _pipEntering ? null : _setPip),
                 ElevatedButton.icon(
                     icon: const Icon(Icons.picture_in_picture_alt),
                     label: const Text('백그라운드 실행'),
-                    onPressed: _busy || _developerMode || _pipEntering
+                    onPressed: _busy ||
+                            _developerMode ||
+                            _pipEntering ||
+                            _backgroundBusy
                         ? null
-                        : _enterPip),
+                        : _runBackground),
                 const Text(
-                    '작은 카메라 창으로 수어 인식을 계속합니다. '
-                    'PiP 창을 닫거나 화면을 잠그면 촬영이 중지됩니다.',
+                    '백그라운드 인식이 켜져 있으면 PiP 창을 닫아도 촬영을 계속합니다. '
+                    '작은 창에는 단어·신뢰도·처리 FPS가 표시됩니다. '
+                    '창 없이 볼륨은 바로 조절하며, 전화·길찾기는 실행 알림을 눌러 주세요.',
                     style: TextStyle(color: muted, fontSize: 12)),
                 if (_pipError != null)
                   Text(_pipError!, style: const TextStyle(color: danger)),
+                TextButton(
+                    onPressed: _notificationSettings,
+                    child: const Text('앱 알림 설정')),
               ],
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 title: const Text('개발자 모드'),
                 subtitle: const Text('단어 버튼으로 실제 기능을 테스트합니다'),
                 value: _developerMode,
-                onChanged: _busy
+                onChanged: _busy || _backgroundBusy
                     ? null
-                    : (value) => setState(() {
+                    : (value) async {
+                        if (_backgroundEnabled &&
+                            !await _setBackground(false)) {
+                          return;
+                        }
+                        if (!mounted) return;
+                        setState(() {
                           _developerMode = value;
                           _developerGloss.clear();
                           _gate.reset();
                           _translation = '';
                           _status = value ? '테스트할 단어를 눌러 주세요.' : '인식 대기 중';
-                        }),
+                        });
+                      },
               ),
               if (_developerMode) ...[
                 const Text('버튼을 누르면 전화·길찾기·볼륨 기능을 실제로 실행합니다. '

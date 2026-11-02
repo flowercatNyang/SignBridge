@@ -203,7 +203,9 @@ void main() {
     await tester.pumpAndSettle();
     prediction(const SignPrediction('엄마', .99));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.byKey(const Key('assistant-submit')));
+    await tester.scrollUntilVisible(
+        find.byKey(const Key('assistant-submit')), 200,
+        scrollable: find.byType(Scrollable).first);
     await tester.tap(find.byKey(const Key('assistant-submit')));
     await tester.pumpAndSettle();
     expect(requests, ['gloss:엄마']);
@@ -211,13 +213,16 @@ void main() {
     expect(calls, isEmpty);
     await tester.ensureVisible(find.byKey(const Key('assistant-execute')));
     await tester.tap(find.byKey(const Key('assistant-execute')));
-    await tester.pumpAndSettle();
+    // The page keeps an indeterminate progress indicator while confirmation is open.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
     expect(calls, isEmpty);
     await tester.tap(find.text('취소'));
     await tester.pumpAndSettle();
     expect(calls, isEmpty);
     await tester.tap(find.byKey(const Key('assistant-execute')));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(find.text('확인하고 열기'));
     await tester.pumpAndSettle();
     expect(calls.single.method, 'set_alarm');

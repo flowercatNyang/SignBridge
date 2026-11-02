@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:testsign/src/demo_app.dart';
+import 'package:testsign/src/hand_camera/hand_camera.dart';
+import 'home_test_helpers.dart';
 
 void main() {
   for (final resume in [false, true]) {
@@ -12,6 +14,9 @@ void main() {
       final actions = <String>[];
       final messenger = tester.binding.defaultBinaryMessenger;
       const actionChannel = MethodChannel('signbridge/actions');
+      const background = MethodChannel('signbridge/background');
+      messenger.setMockMethodCallHandler(
+          background, (call) async => {'enabled': false, 'pipEnabled': true});
       messenger.setMockMethodCallHandler(SystemChannels.platform_views,
           (call) async {
         if (call.method == 'create') {
@@ -33,11 +38,14 @@ void main() {
       addTearDown(() {
         messenger.setMockMethodCallHandler(SystemChannels.platform_views, null);
         messenger.setMockMethodCallHandler(actionChannel, null);
+        messenger.setMockMethodCallHandler(background, null);
       });
       await tester.pumpWidget(const SignBridgeApp());
+      await openShortcuts(tester);
+      await tester.ensureVisible(find.byType(HandCamera));
       await tester.pumpAndSettle();
       expect(viewId, isNotNull);
-      Future<void> send(String display) async {
+      Future<void> send(String display, {bool handledByService = false}) async {
         final done = Completer<void>();
         const codec = StandardMethodCodec();
         messenger.handlePlatformMessage(
@@ -45,6 +53,7 @@ void main() {
             codec.encodeMethodCall(MethodCall('prediction', {
               'display': display,
               'handsAbsent': false,
+              'handledByService': handledByService,
             })), (reply) {
           if (reply != null) codec.decodeEnvelope(reply);
           done.complete();
@@ -63,6 +72,8 @@ void main() {
         await tester.pumpAndSettle();
       }
       await send('위 · 74%');
+      expect(actions, isEmpty);
+      await send('위 · 99%', handledByService: true);
       expect(actions, isEmpty);
       await send('위 · 75%');
       expect(actions, ['volumeUp']);
