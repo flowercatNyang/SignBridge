@@ -6,6 +6,8 @@ import 'design.dart';
 import 'hand_camera/hand_camera.dart';
 import 'sign_commands.dart';
 import 'gloss_test_panel.dart';
+import 'alarm_page.dart';
+import 'translation.dart';
 
 class AssistantPage extends StatefulWidget {
   const AssistantPage({Key? key, this.request, this.initialGloss = '',
@@ -24,7 +26,7 @@ class _AssistantPageState extends State<AssistantPage>
   final _token = TextEditingController(
       text: const String.fromEnvironment('ASSISTANT_ACCESS_TOKEN'));
   final _history = <Map<String, String>>[];
-  final _gate = CommandGate();
+  final _gate = RecognitionGate();
   final _actions = DeviceActions();
   AssistantReply? _reply;
   String _inputType = 'text', _status = '';
@@ -63,12 +65,29 @@ class _AssistantPageState extends State<AssistantPage>
   void _prediction(SignPrediction prediction) {
     if (!_camera || _busy || !_foreground ||
         ModalRoute.of(context)?.isCurrent != true) return;
-    if (_gate.accept(prediction) == null) return;
-    _appendGloss(prediction.text);
+    final word = _gate.accept(prediction);
+    if (word != null) _appendGloss(word);
   }
 
   void _appendGloss(String word) {
     if (_busy || !_foreground) return;
+    if (_reply == null && (word == '그렇다' || word == '틀리다')) {
+      setState(() => _status = '확인할 요청이 없습니다. 내용을 먼저 입력해 주세요.');
+      return;
+    }
+    if (_reply != null && (word == '그렇다' || word == '틀리다')) {
+      if (word == '틀리다') {
+        _reset();
+        setState(() => _status = '이전 요청을 폐기했습니다. 다시 입력해 주세요.');
+      } else if (_reply!.action != null) {
+        _execute(confirmed: true);
+      } else if (_reply!.question != null) {
+        _input.text = '그렇다';
+        _inputType = 'text';
+        _interpret();
+      }
+      return;
+    }
     setState(() {
       final previous = _inputType == 'gloss' ? _input.text.trim() : '';
       final combined = previous.isEmpty ? word : '$previous $word';
@@ -127,6 +146,7 @@ class _AssistantPageState extends State<AssistantPage>
       if (!mounted) return;
       setState(() {
         _reply = result;
+        _gate.reset(requireRelease: true);
         if (result.question != null) {
           _history.add({'role': 'user',
             'content': inputType == 'gloss' ? '[수어 인식 라벨] $text' : text});
@@ -148,22 +168,22 @@ class _AssistantPageState extends State<AssistantPage>
     }
   }
 
-  Future<void> _execute() async {
+  Future<void> _execute({bool confirmed = false}) async {
     final reply = _reply;
     final action = reply?.action;
     if (_busy || reply == null || action == null || !_foreground) return;
     setState(() => _busy = true);
-    final confirmed = await showDialog<bool>(context: context, builder: (context) =>
+    final approved = confirmed || await showDialog<bool>(context: context, builder: (context) =>
         AlertDialog(title: const Text('실행 내용 확인'),
           content: SingleChildScrollView(child: Text(
               '${reply.translation}\n\n${action.summary}\n\n'
-              '${action.name == 'compose_message' ? '문자 앱에서 최종 전송합니다.' : '시계 앱에서 실제 설정을 확인해 주세요.'}')),
+              '${action.name == 'adjust_volume' ? '확인하면 미디어 볼륨을 한 단계 변경합니다.' : action.name == 'compose_message' ? '문자 앱에서 최종 전송합니다.' : action.arguments.containsKey('date') ? 'SignBridge 날짜 알림을 예약합니다.' : '시계 앱에서 실제 설정을 확인해 주세요.'}')),
           actions: [
             TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('취소')),
             TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('확인하고 열기')),
-          ]));
+          ])) == true;
     if (!mounted) return;
-    if (confirmed != true || !_foreground) {
+    if (!approved || !_foreground) {
       setState(() => _busy = false);
       return;
     }
@@ -195,9 +215,19 @@ class _AssistantPageState extends State<AssistantPage>
     body: SafeArea(child: Center(child: ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 640),
       child: ListView(padding: const EdgeInsets.all(20), children: [
-        description('수어 인식 결과를 한국어 번역 후보로 정리하고 알람·문자 작성을 도와드립니다. '
+        description('수어 인식 결과를 한국어 번역 후보로 정리하고 알람·문자 작성·볼륨 조절을 도와드립니다. '
             '의미가 다르거나 빠졌다면 수정해 주세요.'),
         const SizedBox(height: 12),
+        TextButton(onPressed: _busy ? null : () async {
+          setState(() => _camera = false);
+          await Navigator.push<void>(context, MaterialPageRoute(builder: (_) => const TranslationPage()));
+        }, child: const Text('기존 입력 화면 · 회사 위치 등록')),
+        ElevatedButton(key: const Key('assistant-alarm-wizard'),
+          onPressed: _busy ? null : () async {
+            setState(() { _camera = false; _gate.reset(); });
+            await Navigator.push<void>(context, MaterialPageRoute(builder: (_) =>
+                AlarmPage(developerMode: _developerMode)));
+          }, child: const Text('알람 · 숫자로 시간·날짜 입력')),
         ExpansionTile(title: const Text('서버 연결 설정'), children: [
           TextField(key: const Key('assistant-server'), controller: _server,
             enabled: !_busy, decoration: const InputDecoration(labelText: '백엔드 주소')),
@@ -250,15 +280,14 @@ class _AssistantPageState extends State<AssistantPage>
           label: Text(_camera ? '촬영 종료' : '수어 입력 시작'),
           onPressed: _busy || _developerMode ? null : () => setState(() {
             _camera = !_camera;
-            _gate.reset();
+            _gate.reset(requireRelease: _reply != null);
             if (_camera) {
               _inputType = 'gloss';
-              if (_reply?.action != null) _reply = null;
             }
           })),
         if (_camera) ...[
-          const Text('현재 카메라 모델은 아프다·위·아래·회사·엄마만 인식합니다. '
-              '다른 표현은 라벨 또는 한국어로 직접 입력해 시험할 수 있습니다.'),
+          const Text('배포된 모델에 포함된 단어만 인식합니다. 단어마다 손을 0.8초 이상 내려 주세요. '
+              '현재 임시 목록은 두 종류의 위와 확인 수어를 포함한 13개 클래스입니다. 새 단어는 학습·모델 배포 후 사용할 수 있습니다.'),
           SizedBox(height: 300, child: HandCamera(onPrediction: _prediction)),
         ],
         const SizedBox(height: 12),
@@ -280,14 +309,21 @@ class _AssistantPageState extends State<AssistantPage>
               gap,
               Text(_reply!.action!.summary),
               ElevatedButton(key: const Key('assistant-execute'),
-                onPressed: _busy ? null : _execute, child: const Text('확인 후 실행')),
+                onPressed: _busy ? null : () => _execute(), child: const Text('확인 후 실행')),
+            ],
+            if (_reply!.action != null || _reply!.question != null) ...[
+              const Text('확인 화면에서 그렇다 = 승인, 틀리다 = 요청 폐기 후 재입력. 화면 버튼도 사용할 수 있습니다.'),
+              TextButton(onPressed: _busy ? null : () => _appendGloss('그렇다'),
+                child: const Text('그렇다')),
+              TextButton(onPressed: _busy ? null : () => _appendGloss('틀리다'),
+                child: const Text('틀리다')),
             ],
           ])),
         gap,
         Text(_status, key: const Key('assistant-status')),
         const SizedBox(height: 12),
         description('알람·문자 실행은 Android에서 지원합니다. '
-            '특정 날짜 알람, 병원 검색, 자유로운 수어 문장 인식은 아직 지원하지 않습니다.'),
+            '날짜 알람은 앱 내부 알림으로 예약합니다. 병원 검색과 길 찾기 등 LLM 도구 확장은 별도 작업입니다.'),
       ]),
     ))),
   );

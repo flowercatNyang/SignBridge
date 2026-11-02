@@ -33,18 +33,29 @@ class AssistantAction {
     final args = Map<String, dynamic>.from(value['arguments'] as Map);
     if (name == 'set_alarm') {
       final hour = args['hour'], minute = args['minute'], days = args['days'];
-      if (args.length != 4 || hour is! int || hour < 0 || hour > 23 ||
+      final date = args['date'];
+      final parsedDate = date is String ? DateTime.tryParse(date) : null;
+      if (args.keys.any((key) => !['hour', 'minute', 'label', 'days', 'date'].contains(key)) ||
+          hour is! int || hour < 0 || hour > 23 ||
           minute is! int || minute < 0 || minute > 59 ||
           args['label'] is! String || (args['label'] as String).length > 120 ||
           days is! List || days.length > 7 ||
           days.any((dynamic day) => day is! int || day < 1 || day > 7) ||
-          days.toSet().length != days.length) {
+          days.toSet().length != days.length ||
+          (args.containsKey('date') && (date is! String ||
+              !RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(date) ||
+              parsedDate == null || parsedDate.toIso8601String().substring(0, 10) != date ||
+              days.isNotEmpty))) {
         throw const FormatException('알람 설정이 올바르지 않습니다.');
       }
     } else if (name == 'compose_message') {
       if (args.length != 2 || !_validText(args['recipient'], 80) ||
           !_validText(args['body'], 1000)) {
         throw const FormatException('문자 수신자와 내용을 확인해 주세요.');
+      }
+    } else if (name == 'adjust_volume') {
+      if (args.length != 1 || !['up', 'down'].contains(args['direction'])) {
+        throw const FormatException('볼륨 방향을 확인해 주세요.');
       }
     } else {
       throw const FormatException('지원하지 않는 실행 기능입니다.');
@@ -53,6 +64,9 @@ class AssistantAction {
   }
 
   String get summary {
+    if (name == 'adjust_volume') {
+      return arguments['direction'] == 'up' ? '미디어 볼륨 한 단계 높이기' : '미디어 볼륨 한 단계 낮추기';
+    }
     if (name == 'set_alarm') {
       final hour = '${arguments['hour']}'.padLeft(2, '0');
       final minute = '${arguments['minute']}'.padLeft(2, '0');
@@ -62,7 +76,9 @@ class AssistantAction {
           ? '반복 없음 · 다음 해당 시각'
           : '${days.map((dynamic day) => weekdays[(day as int) - 1]).join(', ')} 반복';
       final label = arguments['label'] as String;
-      return '알람 $hour:$minute\n$repeat${label.isEmpty ? '' : '\n이름: $label'}';
+      final date = arguments['date'];
+      final schedule = date == null ? repeat : '$date · 한 번 · 기기 현지 시간';
+      return '알람 $hour:$minute\n$schedule${label.isEmpty ? '' : '\n이름: $label'}';
     }
     return '수신 연락처: ${arguments['recipient']}\n문자 내용: ${arguments['body']}';
   }

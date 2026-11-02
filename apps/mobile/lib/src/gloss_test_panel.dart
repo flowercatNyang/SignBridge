@@ -3,7 +3,11 @@ import 'design.dart';
 
 // Simulated recognition labels only; adding a button does not train the camera model.
 const assistantTestWords = [
-  '엄마', '나', '보내다', '늦다', '일어나다', '알람', '설정', '오전', '오후', '8', '시',
+  '엄마', '나', '아프다', '회사', '위(방향)', '아래', '위(내장)', '가깝다',
+  '매일매일', '일어나다', '8', '그렇다', '틀리다',
+  // Temporarily excluded recognition classes (screen controls still work).
+  // '걷다', '귀',
+  // '0', '1', '2', '3', '4', '5', '6', '7', '9',
 ];
 
 class GlossTestPanel extends StatelessWidget {

@@ -17,6 +17,29 @@ ALARM = {"translation": "오전 7시에 알람을 설정해 주세요.", "questi
 
 
 class AssistantTest(unittest.TestCase):
+    def test_volume_direction_is_validated_and_organ_is_not_a_mock_command(self):
+        for text, direction in [('위(방향)', 'up'), ('상부', 'up'), ('아래', 'down')]:
+            result = interpret({'text': text, 'input_type': 'gloss'}, Settings(mode='mock'))
+            self.assertEqual(result['action'], {'name': 'adjust_volume', 'arguments': {'direction': direction}})
+        for text in ['위(내장)', '위(내장) 아프다', '위']:
+            self.assertIsNone(interpret({'text': text, 'input_type': 'gloss'}, Settings(mode='mock'))['action'])
+        for args in [{'direction': 'left'}, {'direction': 'up', 'steps': 100}, {}]:
+            with self.assertRaises(AssistantError):
+                validate_plan({**ALARM, 'action': {'name': 'adjust_volume', 'arguments': args}})
+
+    def test_llm_cannot_turn_stomach_gloss_or_its_confirmation_into_volume(self):
+        volume = {**ALARM, 'action': {'name': 'adjust_volume', 'arguments': {'direction': 'up'}}}
+        completion = {'choices': [{'finish_reason': 'stop', 'message': {'content': json.dumps(volume)}}]}
+        for data in [
+            {'text': '위(내장) 아프다', 'input_type': 'gloss'},
+            {'text': '그렇다', 'history': [{'role': 'user', 'content': '[수어 인식 라벨] 위(내장)'},
+                                       {'role': 'assistant', 'content': '볼륨을 올릴까요?'}]},
+        ]:
+            with patch('backend.assistant.request.urlopen', return_value=io.BytesIO(json.dumps(completion).encode())):
+                result = interpret(data, Settings(api_key='test-key'))
+            self.assertIsNone(result['action'])
+            self.assertIn('장기', result['question'])
+
     def test_mock_is_explicit_and_never_translates_ambiguous_gloss_to_action(self):
         result = interpret({"text": "엄마 아프다", "input_type": "gloss"}, Settings(mode="mock"))
         self.assertEqual(result["mode"], "mock")
@@ -54,7 +77,7 @@ class AssistantTest(unittest.TestCase):
             cases.append({**ALARM, "action": {"name": "set_alarm",
                           "arguments": {**ALARM["action"]["arguments"], field: value}}})
         cases.append({**ALARM, "action": {"name": "set_alarm",
-                      "arguments": {**ALARM["action"]["arguments"], "date": "2030-01-01"}}})
+                      "arguments": {**ALARM["action"]["arguments"], "date": "2030-02-30"}}})
         cases.append({**ALARM, "action": {"name": "compose_message",
                       "arguments": {"recipient": "엄마", "body": ""}}})
         for data in cases:
@@ -66,6 +89,15 @@ class AssistantTest(unittest.TestCase):
         for question in (None, "누가 아픈가요?"):
             result = validate_plan({"translation": "엄마, 아프다", "question": question, "action": None})
             self.assertIsNone(result["action"])
+
+    def test_dated_alarm_preserves_date_and_rejects_repeat_or_invalid_dates(self):
+        args = {**ALARM['action']['arguments'], 'date': '2028-02-29'}
+        plan = {**ALARM, 'action': {'name': 'set_alarm', 'arguments': args}}
+        self.assertEqual(validate_plan(plan)['action']['arguments']['date'], '2028-02-29')
+        for changes in ({'date': '2027-02-29'}, {'date': '2028-13-01'},
+                        {'date': '2028-2-29'}, {'date': None}, {'days': [1]}):
+            with self.subTest(changes=changes), self.assertRaises(AssistantError):
+                validate_plan({**plan, 'action': {'name': 'set_alarm', 'arguments': {**args, **changes}}})
 
     def test_no_key_does_not_make_vendor_request(self):
         with patch("backend.assistant.request.urlopen") as call:

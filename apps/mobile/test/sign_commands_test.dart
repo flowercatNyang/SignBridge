@@ -5,7 +5,8 @@ void main() {
   test('Only requested translated words trigger actions', () {
     expect(shortcutCommands, {
       '아프다': 'emergency',
-      '위': 'volumeUp',
+      '위(방향)': 'volumeUp',
+      '상부': 'volumeUp',
       '아래': 'volumeDown',
       '회사': 'company',
       '엄마': 'mother',
@@ -23,6 +24,8 @@ void main() {
       '아프다 아님',
       '회사에 가지 마',
       '위로',
+      '위',
+      '위(내장)',
       ''
     ]) {
       expect(resolveCommand(text), isNull);
@@ -50,8 +53,8 @@ void main() {
   });
   test('New words execute without manually rearming', () {
     final gate = CommandGate();
-    expect(gate.accept(const SignPrediction('위', .75)), 'volumeUp');
-    expect(gate.accept(const SignPrediction('위', .99)), isNull);
+    expect(gate.accept(const SignPrediction('위(방향)', .75)), 'volumeUp');
+    expect(gate.accept(const SignPrediction('위(방향)', .99)), isNull);
     expect(gate.accept(const SignPrediction('아래', .75)), 'volumeDown');
     expect(gate.accept(const SignPrediction('회사', .99)), 'company');
     expect(gate.accept(const SignPrediction('엄마', .99)), 'mother');
@@ -59,12 +62,12 @@ void main() {
   test('Only sustained hand absence rearms a held word', () {
     final gate = CommandGate();
     final start = DateTime(2026);
-    expect(gate.accept(const SignPrediction('위', .75)), 'volumeUp');
+    expect(gate.accept(const SignPrediction('위(방향)', .75)), 'volumeUp');
     // Loading messages or low confidence must not repeat an action.
     gate.accept(const SignPrediction('', 0), timestamp: start);
     gate.accept(const SignPrediction('', 0),
         timestamp: start.add(const Duration(seconds: 2)));
-    expect(gate.accept(const SignPrediction('위', .99)), isNull);
+    expect(gate.accept(const SignPrediction('위(방향)', .99)), isNull);
     final absent = SignPrediction.fromMessage({
       'display': '양손과 어깨가 보이도록 동작해 주세요',
       'handsAbsent': true,
@@ -72,12 +75,12 @@ void main() {
     gate.accept(absent, timestamp: start);
     gate.accept(absent,
         timestamp: start.add(const Duration(milliseconds: 799)));
-    expect(gate.accept(const SignPrediction('위', .99)), isNull);
+    expect(gate.accept(const SignPrediction('위(방향)', .99)), isNull);
     gate.accept(absent, timestamp: start);
     gate.accept(absent,
         timestamp: start.add(const Duration(milliseconds: 800)));
-    expect(gate.accept(const SignPrediction('위', .75)), 'volumeUp');
-    expect(gate.accept(const SignPrediction('위', .99)), isNull);
+    expect(gate.accept(const SignPrediction('위(방향)', .75)), 'volumeUp');
+    expect(gate.accept(const SignPrediction('위(방향)', .99)), isNull);
   });
   test('Native prediction messages preserve threshold and word', () {
     final result = SignPrediction.fromMessage({

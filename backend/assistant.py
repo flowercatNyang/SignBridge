@@ -4,6 +4,7 @@ import json
 import os
 import re
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 from urllib import error, request
 
@@ -107,7 +108,8 @@ def validate_plan(data):
             if not isinstance(args, dict):
                 raise AssistantError("잘못된 실행 인자입니다.")
             if name == "set_alarm":
-                if set(args) != {"hour", "minute", "label", "days"}:
+                if set(args) not in ({"hour", "minute", "label", "days"},
+                                     {"hour", "minute", "label", "days", "date"}):
                     raise AssistantError("알람 시간과 반복 정보가 필요합니다.")
                 if type(args["hour"]) is not int or not 0 <= args["hour"] <= 23:
                     raise AssistantError("알람 시각은 0~23시여야 합니다.")
@@ -119,11 +121,24 @@ def validate_plan(data):
                     type(day) is not int or not 1 <= day <= 7 for day in days
                 ) or len(set(days)) != len(days):
                     raise AssistantError("반복 요일은 월요일=1~일요일=7입니다.")
+                if "date" in args:
+                    value = args["date"]
+                    if not isinstance(value, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+                        raise AssistantError("날짜는 YYYY-MM-DD 형식이어야 합니다.")
+                    try:
+                        date.fromisoformat(value)
+                    except ValueError as exc:
+                        raise AssistantError("존재하지 않는 날짜입니다.") from exc
+                    if days:
+                        raise AssistantError("특정 날짜 알람과 요일 반복을 동시에 지정할 수 없습니다.")
             elif name == "compose_message":
                 if set(args) != {"recipient", "body"}:
                     raise AssistantError("문자 수신자와 내용이 필요합니다.")
                 text_field(args["recipient"], "recipient", 80)
                 text_field(args["body"], "body", 1000)
+            elif name == "adjust_volume":
+                if set(args) != {"direction"} or args["direction"] not in ("up", "down"):
+                    raise AssistantError("볼륨 방향은 up 또는 down이어야 합니다.")
             else:
                 raise AssistantError("지원하지 않는 기능입니다.")
         return {"translation": translation, "question": question, "action": action}
@@ -141,9 +156,16 @@ gloss는 한국어 문장의 단어 목록과 같지 않으며 손의 공간 지
 의미가 여러 가지이거나 기능 실행에 정보가 부족하면 question으로 구체적으로 확인하고 action은 null로 둬라.
 단순 설명은 번역만 하고 action=null로 둬라. '아프다'만으로 신고, 병원 검색 또는 문자를 실행하지 마라.
 수어와 한국어의 문법 차이를 단순 어순 변경으로 해결했다고 주장하지 마라.
-지원 기능은 set_alarm과 compose_message뿐이다. 다른 기능은 번역은 가능하지만 action=null로 반환하라.
-알람은 시계 앱의 시각/반복 요일 설정이다. 특정 날짜 또는 상대 시간 알람은 현재 지원하지 않는다.
-그 요청은 날짜를 조용히 버리지 말고 question으로 시각/반복 알람을 원하는지 확인하라.
+지원 기능은 set_alarm, compose_message, adjust_volume이다. 다른 기능은 번역은 가능하지만 action=null로 반환하라.
+위(내장)은 WORD2100 장기 위이며 볼륨 명령이 아니다. 위(방향)/상부는 WORD2576 방향 위이다.
+위(방향)/상부를 올림 요청으로, 아래를 내림 요청으로 받으면 adjust_volume의 direction을 up/down으로 정리하라.
+접두어 없는 '위'는 장기/방향을 추측하지 말고 질문하라. 위(내장) 또는 위(내장) 아프다를 볼륨 명령으로 만들지 마라.
+adjust_volume은 미디어 볼륨을 한 단계만 변경하며 direction 이외의 인자를 넣지 마라.
+알람은 hour/minute/label/days를 사용한다. 특정 날짜는 추가 인자 date=YYYY-MM-DD를 사용하고 days=[]로 둬라.
+날짜는 앱 내부 알림으로 예약된다. 연도나 현지 날짜가 확인되지 않았으면 추측하지 말고 질문하라.
+숫자만 입력한 네 자리는 날짜 MMDD와 시간 HHMM 중 어느 것인지 불명확하면 질문하라.
+시간은 명시된 HHMM/24시간제 맥락에서만 네 자리로 해석하라. 1305=13:05, 0105=01:05다.
+날짜·시간의 잘못된 값을 다른 값으로 조용히 고치지 마라. 상대 시간 알람은 지원하지 않으며 추가 확인하라.
 오전/오후가 불명확하면 질문하라. 반복 요일 days는 월=1, 화=2, 수=3, 목=4, 금=5, 토=6, 일=7이다.
 반복을 요청하지 않았다면 days=[]를 사용하라. label은 입력에 이름이 없으면 빈 문자열이다.
 문자는 recipient(사용자가 지정한 연락처 이름), body(전달할 내용)가 모두 필요하다.
@@ -161,6 +183,10 @@ gloss는 한국어 문장의 단어 목록과 같지 않으며 손의 공간 지
 def mock_plan(data):
     """Fixed software demos, NOT a sign-language translator or an offline LLM."""
     text = data["text"]
+    if text in ("위(방향)", "상부", "아래"):
+        direction = "down" if text == "아래" else "up"
+        return {"translation": f"미디어 볼륨을 한 단계 {'내려' if direction == 'down' else '올려'} 주세요.",
+                "question": None, "action": {"name": "adjust_volume", "arguments": {"direction": direction}}}
     if data["input_type"] == "text" and text == "오전 7시에 기상 알람 설정해줘":
         return {"translation": "오전 7시에 기상 알람을 설정해 주세요.", "question": None,
                 "action": {"name": "set_alarm", "arguments": {"hour": 7, "minute": 0, "label": "기상", "days": []}}}
@@ -214,6 +240,11 @@ def interpret(data, settings):
         if content.startswith("```json\n") and content.endswith("```"):
             content = content[8:-3].strip()
         plan = validate_plan(json.loads(content))
+        user_inputs = [data["text"]] + [turn["content"] for turn in data["history"] if turn["role"] == "user"]
+        if (plan["action"] is not None and plan["action"]["name"] == "adjust_volume"
+                and any("위(내장)" in text for text in user_inputs)):
+            plan["action"] = None
+            plan["question"] = "장기 위 표현은 볼륨 명령으로 처리하지 않습니다. 볼륨 조절은 새 요청에서 위(방향) 또는 아래로 입력해 주세요."
         # Isolated class labels omit grammatical evidence. Confirm an initial
         # gloss interpretation even when the LLM incorrectly reports certainty.
         if data["input_type"] == "gloss" and not data["history"] and plan["question"] is None:

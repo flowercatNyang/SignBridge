@@ -1,6 +1,10 @@
 package com.example.testsign
 
 import android.Manifest
+import android.app.AlarmManager
+import android.app.NotificationManager
+import android.os.Build
+import android.provider.Settings
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.AudioManager
@@ -63,6 +67,38 @@ class MainActivity: FlutterActivity() {
                         val calendarDay = (day % 7) + Calendar.SUNDAY
                         require(!days.contains(calendarDay)) { "반복 요일이 중복되었습니다." }
                         days.add(calendarDay)
+                    }
+                    if (data.has("date")) {
+                        require(days.isEmpty()) { "날짜 알람에는 반복 요일을 지정할 수 없습니다." }
+                        val time = DatedAlarmReceiver.timestamp(data)
+                        require(time > System.currentTimeMillis()) { "이미 지난 시각입니다. 다시 입력해 주세요." }
+                        DatedAlarmReceiver.ensureChannel(this)
+                        val notifications = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+                        if (Build.VERSION.SDK_INT >= 33 &&
+                            checkSelfPermission("android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED) {
+                            requestPermissions(arrayOf("android.permission.POST_NOTIFICATIONS"), 4105)
+                            result.error("notification_permission", "알림 권한을 허용한 뒤 다시 승인해 주세요.", null)
+                            return
+                        }
+                        require(notifications.areNotificationsEnabled()) { "앱 설정에서 알림을 허용해 주세요." }
+                        if (Build.VERSION.SDK_INT >= 26) {
+                            require(notifications.getNotificationChannel(DatedAlarmReceiver.CHANNEL).importance != NotificationManager.IMPORTANCE_NONE) {
+                                "앱 설정에서 날짜 지정 알람 채널을 허용해 주세요."
+                            }
+                        }
+                        val alarms = getSystemService(ALARM_SERVICE) as AlarmManager
+                        if (Build.VERSION.SDK_INT >= 31 && !alarms.canScheduleExactAlarms()) {
+                            startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:$packageName")))
+                            result.error("alarm_permission", "정확한 알람 권한을 허용한 뒤 다시 승인해 주세요.", null)
+                            return
+                        }
+                        val saved = getSharedPreferences("dated_alarms", MODE_PRIVATE)
+                        val id = saved.getInt("next_id", 1)
+                        check(saved.edit().putString(id.toString(), data.toString()).putInt("next_id", id + 1).commit())
+                        try { DatedAlarmReceiver.schedule(this, id, time) }
+                        catch (error: Exception) { saved.edit().remove(id.toString()).commit(); throw error }
+                        result.success("${data.getString("date")} ${hour}:${minute.toString().padStart(2, '0')} 날짜 알림을 예약했습니다. 소리·진동은 기기 알림 설정을 따릅니다.")
+                        return
                     }
                     val intent = Intent(AlarmClock.ACTION_SET_ALARM)
                         .putExtra(AlarmClock.EXTRA_HOUR, hour as Int)
@@ -130,16 +166,22 @@ class MainActivity: FlutterActivity() {
                     startActivity(Intent(Intent.ACTION_CALL, Uri.fromParts("tel", number, null)))
                     result.success("전화번호부의 엄마에게 발신을 요청했습니다.")
                 }
-                "volumeUp", "volumeDown" -> {
+                "volumeUp", "volumeDown", "adjust_volume" -> {
+                    val raise = if (call.method == "adjust_volume") {
+                        val data = JSONObject(call.argument<String>("value") ?: "")
+                        val direction = data.getString("direction")
+                        require(data.length() == 1 && direction in listOf("up", "down")) { "볼륨 방향을 확인해 주세요." }
+                        direction == "up"
+                    } else call.method == "volumeUp"
                     val audio = getSystemService(AUDIO_SERVICE) as AudioManager
                     check(!audio.isVolumeFixed) { "이 기기는 볼륨 조절을 지원하지 않습니다." }
                     val before = audio.getStreamVolume(AudioManager.STREAM_MUSIC)
                     audio.adjustStreamVolume(AudioManager.STREAM_MUSIC,
-                        if (call.method == "volumeUp") AudioManager.ADJUST_RAISE else AudioManager.ADJUST_LOWER,
+                        if (raise) AudioManager.ADJUST_RAISE else AudioManager.ADJUST_LOWER,
                         AudioManager.FLAG_SHOW_UI)
                     val after = audio.getStreamVolume(AudioManager.STREAM_MUSIC)
                     result.success(if (before == after) "미디어 볼륨이 이미 한계에 도달했습니다."
-                        else "미디어 볼륨을 ${if (call.method == "volumeUp") "올렸습니다" else "내렸습니다"}. ($after/${audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC)})")
+                        else "미디어 볼륨을 ${if (raise) "올렸습니다" else "내렸습니다"}. ($after/${audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC)})")
                 }
                 else -> result.notImplemented()
             }

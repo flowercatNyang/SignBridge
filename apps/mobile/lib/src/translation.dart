@@ -37,7 +37,7 @@ class _TranslationPageState extends State<TranslationPage>
     _foreground = state == AppLifecycleState.resumed;
     if (!_busy) {
       _status =
-          _foreground ? '자동 실행 대기 중 · 수어를 보여 주세요.' : '앱으로 돌아오면 자동 실행을 계속합니다.';
+          _foreground ? '수어 입력 대기 중' : '앱으로 돌아오면 입력을 계속합니다.';
     }
     if (mounted) setState(() {});
   }
@@ -55,13 +55,13 @@ class _TranslationPageState extends State<TranslationPage>
       // Keep the action result/error visible while the same sign is held.
       if (_gate.armed) {
         _status = prediction.text.isEmpty
-            ? '자동 실행 대기 중 · 수어를 보여 주세요.'
+            ? '수어 입력 대기 중'
             : prediction.confidence.isFinite
-                ? '신뢰도 ${(prediction.confidence * 100).floor()}% · 75% 이상이면 자동 실행합니다.'
+                ? '신뢰도 ${(prediction.confidence * 100).floor()}% · 단어를 LLM 입력으로 전달합니다.'
                 : '인식 결과를 다시 확인하는 중입니다.';
       }
     });
-    if (command != null) _execute(command);
+    if (command != null) _openAssistant(fromDrawer: false, initialGloss: prediction.text);
   }
 
   void _testWord(String word) {
@@ -73,7 +73,7 @@ class _TranslationPageState extends State<TranslationPage>
     final command = _gate.accept(SignPrediction(word, 1));
     if (command == null) return;
     setState(() => _translation = word);
-    _execute(command);
+    _openAssistant(fromDrawer: false, initialGloss: word, developerMode: true);
   }
 
   void _restartRecognition() {
@@ -96,21 +96,6 @@ class _TranslationPageState extends State<TranslationPage>
         MaterialPageRoute(builder: (_) => AssistantPage(
             initialGloss: initialGloss, developerMode: developerMode)));
     if (mounted) setState(() => _assistantOpen = false);
-  }
-
-  Future<void> _execute(String command) async {
-    setState(() {
-      _busy = true;
-      _status = '기능 실행 중…';
-    });
-    try {
-      final result = await _actions.execute(command);
-      if (mounted) setState(() => _status = result);
-    } catch (error) {
-      if (mounted) setState(() => _status = '$error');
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
   }
 
   Future<void> _registerCompany() async {
@@ -159,11 +144,11 @@ class _TranslationPageState extends State<TranslationPage>
                 child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 640),
           child: ListView(padding: const EdgeInsets.all(20), children: [
-            const Badge('수어 번역 후 자동 실행', icon: Icons.translate),
+            const Badge('수어 입력 → LLM 해석 → 확인 후 실행', icon: Icons.translate),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               title: const Text('개발자 모드'),
-              subtitle: const Text('단어 버튼으로 실제 기능을 테스트합니다'),
+              subtitle: const Text('단어 버튼으로 LLM 입력을 테스트합니다'),
               value: _developerMode,
               onChanged: _busy
                   ? null
@@ -176,8 +161,7 @@ class _TranslationPageState extends State<TranslationPage>
                       }),
             ),
             if (_developerMode) ...[
-              const Text('버튼을 누르면 전화·길찾기·볼륨 기능을 실제로 실행합니다. '
-                  '개발자 모드에서는 카메라 자동 실행이 일시 중지됩니다.'),
+              const Text('단어 버튼은 LLM 입력 화면으로 전달합니다. 확인 없이 기능을 실행하지 않습니다.'),
               const SizedBox(height: 12),
               Wrap(spacing: 8, runSpacing: 8, children: [
                 ...shortcutCommands.keys.map((word) => OutlinedButton(
@@ -214,13 +198,13 @@ class _TranslationPageState extends State<TranslationPage>
                 child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: const [
-                  Text('아프다 → 긴급신고 · 119 전화'),
+                  Text('인식한 단어는 LLM 입력으로 전달합니다.'),
                   SizedBox(height: 12),
-                  Text('회사 → 등록한 회사로 네이버맵 길찾기'),
+                  Text('알람은 LLM 비서의 숫자 입력 화면을 사용하세요.'),
                   SizedBox(height: 12),
-                  Text('엄마 → 전화번호부의 엄마에게 전화'),
+                  Text('엄마·아프다 등 단어만으로 전화하지 않습니다.'),
                   SizedBox(height: 12),
-                  Text('위 / 아래 → 미디어 볼륨 올리기 / 내리기'),
+                  Text('실행 전 번역과 세부 내용을 확인하세요.'),
                 ])),
             gap,
             OutlinedButton(
@@ -228,10 +212,10 @@ class _TranslationPageState extends State<TranslationPage>
                 child: const Text('회사 위치 등록 / 변경')),
             gap,
             const Text(
-                '신뢰도 75% 이상이면 바로 실행합니다. 다른 단어는 버튼 없이 계속 실행됩니다. 같은 단어를 다시 실행하려면 손을 잠시 내렸다가 다시 보여 주세요.'),
+                'LLM 비서에서 단어를 모아 입력하세요. 그렇다로 승인하고 틀리다로 다시 입력할 수 있습니다.'),
             const SizedBox(height: 12),
             const Text(
-                '119는 전화 앱에서 통화 버튼을 눌러 발신합니다. 연락처 전화와 볼륨 조절은 Android 앱에서 지원합니다.',
+                '기능 실행은 확인된 요청에 대해서만 수행합니다.',
                 style: TextStyle(color: muted)),
           ]),
         ))),

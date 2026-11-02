@@ -25,13 +25,14 @@ const shortcutCommands = <String, String>{
   '아프다': 'emergency',
   '회사': 'company',
   '엄마': 'mother',
-  '위': 'volumeUp',
+  '위(방향)': 'volumeUp',
+  '상부': 'volumeUp',
   '아래': 'volumeDown',
 };
 String? resolveCommand(String text) =>
     shortcutCommands[text.trim().replaceAll(RegExp(r'[.!?。]+$'), '')];
 
-/// New commands run immediately; a held sign runs once until hands are absent.
+/// Legacy labels are forwarded to the assistant, never executed by this gate.
 class CommandGate {
   String? _lastCommand;
   DateTime? _absentSince;
@@ -60,5 +61,42 @@ class CommandGate {
     if (command == _lastCommand) return null;
     if (command != null) _lastCommand = command;
     return command;
+  }
+}
+
+/// All model labels are input tokens, not shortcut commands. Require a release
+/// between tokens so a held sign cannot fill several digits or approve a plan.
+class RecognitionGate {
+  bool _latched = false;
+  String _candidate = '';
+  int _count = 0;
+  DateTime? _absentSince;
+
+  void reset({bool requireRelease = false}) {
+    _latched = requireRelease;
+    _candidate = '';
+    _count = 0;
+    _absentSince = null;
+  }
+
+  String? accept(SignPrediction prediction, {DateTime? timestamp}) {
+    final now = timestamp ?? DateTime.now();
+    if (prediction.handsAbsent) {
+      _candidate = ''; _count = 0;
+      _absentSince ??= now;
+      if (now.difference(_absentSince!) >= const Duration(milliseconds: 800)) reset();
+      return null;
+    }
+    _absentSince = null;
+    if (_latched) return null;
+    if (!prediction.confidence.isFinite || prediction.confidence < .85 ||
+        prediction.confidence > 1 || prediction.text.trim().isEmpty) {
+      _candidate = ''; _count = 0;
+      return null;
+    }
+    if (_candidate != prediction.text) { _candidate = prediction.text; _count = 0; }
+    if (++_count < 3) return null;
+    _latched = true;
+    return _candidate;
   }
 }
