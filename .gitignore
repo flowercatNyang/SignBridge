@@ -5,18 +5,21 @@ __pycache__/
 
 # PyTorch models
 *.pth
+!/models/sign_language_five_words.pth
 
 # Virtual environment
 venv/
 env/
+.venv/
 .env
 
 # Jupyter Notebook
 .ipynb_checkpoints
 
 # Datasets and large arrays
-data/
+/data/
 *.npy
+*.npz
 
 # OS generated files
 .DS_Store
@@ -26,3 +29,22 @@ Thumbs.db
 scratch/
 duplicates_report.txt
 dropped_words.txt
+
+# Generated handoff archives and build artifacts
+dist/
+build/
+*.egg-info/
+.pytest_cache/
+
+# Flutter and app tooling
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+.model-tools/
+node_modules/
+coverage/
+*.iml
+*.log

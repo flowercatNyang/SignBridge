@@ -66,7 +66,7 @@ def load_models_and_maps(base_dir, device, checkpoint_path=None):
 
     if not os.path.exists(model_path):
         raise FileNotFoundError(
-            f"Checkpoint not found: {model_path}. Run train_pipeline.py or pass --checkpoint."
+            f"Checkpoint not found: {model_path}. Run scripts/training/train_pipeline.py or pass --checkpoint."
         )
     checkpoint = torch.load(model_path, map_location=device)
     if checkpoint.get("format_version") != 2:

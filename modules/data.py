@@ -40,7 +40,7 @@ def read_manifest(manifest_path):
         for row in rows
     ]
     if not samples:
-        raise ValueError("The manifest is empty. Run preprocess_videos.py first.")
+        raise ValueError("The manifest is empty. Run scripts/data/preprocess_videos.py first.")
     return samples
 
 

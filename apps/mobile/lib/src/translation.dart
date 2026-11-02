@@ -1,0 +1,649 @@
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+import 'actions.dart';
+import 'design.dart';
+import 'hand_camera/hand_camera.dart';
+import 'sign_commands.dart';
+import 'assistant_page.dart';
+import 'gloss_test_panel.dart';
+import 'guide.dart';
+
+class TranslationPage extends StatefulWidget {
+  const TranslationPage({Key? key, this.developerMode = false})
+      : super(key: key);
+  final bool developerMode;
+  @override
+  State<TranslationPage> createState() => _TranslationPageState();
+}
+
+class _TranslationPageState extends State<TranslationPage>
+    with WidgetsBindingObserver {
+  final _gate = RecognitionGate();
+  final _actions = DeviceActions();
+  final _developerGloss = <String>[];
+  final _foregroundGloss = <String>[];
+  static const _pipChannel = MethodChannel('signbridge/pip');
+  static const _backgroundChannel = MethodChannel('signbridge/background');
+  bool _backgroundEnabled = false, _pipEnabled = true, _backgroundBusy = false;
+  bool _backgroundSyncing = false;
+  bool get _android =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+  final _cameraKey = GlobalKey();
+  bool _pipActive = false, _pipEntering = false, _pipLayout = false;
+  bool _visible = true;
+  String? _pipError;
+  String _status = '인식 대기 중', _translation = '';
+  bool _busy = false,
+      _foreground = true,
+      _developerMode = false,
+      _assistantOpen = false;
+  @override
+  void initState() {
+    super.initState();
+    _developerMode = widget.developerMode;
+    WidgetsBinding.instance!.addObserver(this);
+    _pipChannel.setMethodCallHandler((call) async {
+      if (!mounted || call.method != 'changed') return;
+      setState(() {
+        _pipActive = call.arguments == true;
+        _pipLayout = _pipActive;
+      });
+    });
+    if (_android) {
+      _backgroundChannel.setMethodCallHandler((call) async {
+        if (call.method == 'changed') _applyBackgroundState(call.arguments);
+      });
+      _loadBackgroundState(restoreGate: true);
+    }
+  }
+
+  void _applyBackgroundState(dynamic value, {bool restoreGate = false}) {
+    if (!mounted || value is! Map) return;
+    setState(() {
+      _backgroundEnabled = value['enabled'] == true;
+      _pipEnabled = value['pipEnabled'] != false;
+      if (restoreGate) {
+        _gate.reset(requireRelease: true);
+      }
+      if (value['status'] is String && _backgroundEnabled) {
+        _status = value['status'] as String;
+      }
+    });
+  }
+
+  Future<void> _loadBackgroundState({bool restoreGate = false}) async {
+    if (restoreGate) _backgroundSyncing = true;
+    try {
+      _applyBackgroundState(await _backgroundChannel.invokeMethod('state'),
+          restoreGate: restoreGate);
+    } on MissingPluginException {
+      // Other platforms do not expose the Android service.
+    } on PlatformException catch (error) {
+      if (mounted) setState(() => _pipError = error.message);
+    } finally {
+      _backgroundSyncing = false;
+    }
+  }
+
+  Future<bool> _setBackground(bool enabled) async {
+    if (_backgroundBusy) return false;
+    setState(() {
+      _backgroundBusy = true;
+      _pipError = null;
+    });
+    try {
+      final state =
+          await _backgroundChannel.invokeMethod('setEnabled', enabled);
+      _applyBackgroundState(state);
+      return mounted && _backgroundEnabled == enabled;
+    } on PlatformException catch (error) {
+      if (mounted) {
+        setState(() => _pipError = error.message ?? '백그라운드 인식 설정 실패');
+      }
+      return false;
+    } on MissingPluginException {
+      if (mounted) setState(() => _pipError = '백그라운드 인식은 Android 앱에서 지원합니다.');
+      return false;
+    } finally {
+      if (mounted) setState(() => _backgroundBusy = false);
+    }
+  }
+
+  Future<void> _setPip(bool enabled) async {
+    try {
+      _applyBackgroundState(
+          await _backgroundChannel.invokeMethod('setPip', enabled));
+    } on PlatformException catch (error) {
+      if (mounted) setState(() => _pipError = error.message);
+    } on MissingPluginException {
+      if (mounted) setState(() => _pipError = 'PiP 설정은 Android 앱에서 지원합니다.');
+    }
+  }
+
+  Future<void> _runBackground() async {
+    if (!_backgroundEnabled && !await _setBackground(true)) return;
+    if (!mounted) return;
+    if (_pipEnabled) {
+      await _enterPip();
+    } else {
+      try {
+        final hidden =
+            await _backgroundChannel.invokeMethod<bool>('hide') ?? false;
+        if (!hidden && mounted) {
+          setState(() => _pipError = '백그라운드로 전환하지 못했습니다. 홈 버튼을 눌러 주세요.');
+        }
+      } on PlatformException catch (error) {
+        if (mounted) setState(() => _pipError = error.message);
+      }
+    }
+  }
+
+  Future<void> _notificationSettings() async {
+    try {
+      await _backgroundChannel.invokeMethod('notificationSettings');
+    } on PlatformException catch (error) {
+      if (mounted) setState(() => _pipError = error.message);
+    } on MissingPluginException {
+      if (mounted) setState(() => _pipError = 'Android 설정에서 앱 알림을 허용해 주세요.');
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance!.removeObserver(this);
+    _pipChannel.setMethodCallHandler(null);
+    if (_android) _backgroundChannel.setMethodCallHandler(null);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _foreground = state == AppLifecycleState.resumed;
+    if (_foreground && _android) {
+      _loadBackgroundState(restoreGate: true);
+    }
+    _visible = state == AppLifecycleState.resumed ||
+        state == AppLifecycleState.inactive;
+    if (!_visible) _pipActive = false;
+    if (!_busy) {
+      _status = _foreground
+          ? '입력 대기 중 · 수어를 보여 주세요.'
+          : _backgroundEnabled
+              ? '백그라운드에서 수어를 인식하고 있습니다.'
+              : '앱으로 돌아오면 입력을 계속합니다.';
+    }
+    if (mounted) setState(() {});
+  }
+
+  void _prediction(SignPrediction prediction) {
+    if (_assistantOpen ||
+        _developerMode ||
+        _busy ||
+        _backgroundSyncing ||
+        !_foreground ||
+        _pipEntering ||
+        ModalRoute.of(context)?.isCurrent != true) {
+      return;
+    }
+    final word = _gate.accept(prediction);
+    setState(() {
+      if (word != null && word != '그렇다' && word != '틀리다' &&
+          _foregroundGloss.join(' ').length + word.length + 1 <= 2000) {
+        _foregroundGloss.add(word);
+      }
+      _translation = _foregroundGloss.join(' ');
+      // Keep the action result/error visible while the same sign is held.
+      if (_gate.armed) {
+        _status = prediction.text.isEmpty
+            ? '입력 대기 중 · 수어를 보여 주세요.'
+            : prediction.confidence.isFinite
+                ? '신뢰도 ${(prediction.confidence * 100).floor()}% · 단어를 모으는 중입니다.'
+                : '인식 결과를 다시 확인하는 중입니다.';
+      }
+    });
+  }
+
+  void _testWord(String word) {
+    if (!_developerMode ||
+        _busy ||
+        !_foreground ||
+        ModalRoute.of(context)?.isCurrent != true) return;
+    _gate.reset();
+    setState(() => _translation = word);
+    _openAssistant(fromDrawer: false, initialGloss: word, developerMode: true);
+  }
+
+  void _restartRecognition() {
+    if (_android) {
+      _backgroundChannel.invokeMethod('resetGate').catchError((_) => null);
+    }
+    setState(() {
+      _gate.reset();
+      _translation = '';
+      _status = _developerMode ? '테스트할 단어를 눌러 주세요.' : '새 동작을 보여 주세요.';
+    });
+  }
+
+  Future<void> _openAssistant(
+      {bool fromDrawer = true,
+      String initialGloss = '',
+      bool developerMode = false}) async {
+    if (_busy || _assistantOpen) return;
+    if (_backgroundEnabled && !await _setBackground(false)) return;
+    if (!mounted) return;
+    if (fromDrawer) Navigator.pop(context);
+    setState(() {
+      _assistantOpen = true;
+      _gate.reset();
+    });
+    await Navigator.push<void>(
+        context,
+        MaterialPageRoute(
+            builder: (_) => AssistantPage(
+                initialGloss: initialGloss, developerMode: developerMode)));
+    if (mounted) setState(() {
+      _assistantOpen = false;
+      _foregroundGloss.clear();
+      _translation = '';
+      _gate.reset(requireRelease: true);
+    });
+  }
+
+  Future<void> _takeBackgroundInput() async {
+    if (_busy || _backgroundBusy) return;
+    try {
+      final text = await _backgroundChannel.invokeMethod<String>('takeInput') ?? '';
+      if (!mounted) return;
+      setState(() => _backgroundEnabled = false);
+      if (text.isEmpty) {
+        setState(() => _status = '가져올 백그라운드 입력이 없습니다.');
+      } else {
+        await _openAssistant(fromDrawer: false, initialGloss: text);
+      }
+    } on PlatformException catch (error) {
+      if (mounted) setState(() => _pipError = error.message);
+    } on MissingPluginException {
+      if (mounted) setState(() => _pipError = 'Android 앱에서 사용할 수 있습니다.');
+    }
+  }
+
+  Future<void> _enterPip() async {
+    if (_busy || _developerMode || _pipEntering || !_foreground) return;
+    setState(() {
+      _pipEntering = true;
+      _pipLayout = true;
+      _pipError = null;
+    });
+    try {
+      // Render the camera-only layout before Android captures the PiP window.
+      await WidgetsBinding.instance!.endOfFrame;
+      final entered = await _pipChannel.invokeMethod<bool>('enter') ?? false;
+      if (!mounted) return;
+      setState(() {
+        _pipActive = entered && _visible;
+        _pipLayout = _pipActive;
+        if (!entered) {
+          _pipError = 'PiP를 열 수 없습니다. 앱 설정에서 화면 속 화면 권한을 확인해 주세요.';
+        }
+      });
+    } on PlatformException catch (error) {
+      if (mounted) {
+        setState(() => _pipError = error.message ?? 'PiP 실행에 실패했습니다.');
+      }
+    } on MissingPluginException {
+      if (mounted) setState(() => _pipError = '백그라운드 실행은 Android 앱에서 지원합니다.');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _pipEntering = false;
+          _pipLayout = _pipActive;
+        });
+      }
+    }
+  }
+
+  Future<void> _openMenuPage(Widget page) async {
+    if (_backgroundEnabled && !await _setBackground(false)) return;
+    if (!mounted) return;
+    Navigator.pop(context);
+    setState(() {
+      _assistantOpen = true;
+      _gate.reset();
+    });
+    await Navigator.push<void>(
+        context, MaterialPageRoute(builder: (_) => page));
+    if (mounted) setState(() => _assistantOpen = false);
+  }
+
+  void _menuMessage(String title, String body) {
+    Navigator.pop(context);
+    showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+                title: Text(title),
+                content: Text(body),
+                actions: [
+                  TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('확인'))
+                ]));
+  }
+
+  Widget _menuItem(IconData icon, String title, VoidCallback onTap) => ListTile(
+      leading: Icon(icon), title: Text(title), onTap: _busy ? null : onTap);
+
+  Future<void> _registerCompany() async {
+    setState(() => _busy = true);
+    try {
+      final saved = await _actions.loadCompany();
+      if (!mounted) return;
+      final value = await showDialog<String>(
+          context: context, builder: (_) => _CompanyDialog(initial: saved));
+      if (value == null || !mounted) return;
+      await _actions.saveCompany(value);
+      if (mounted) {
+        _gate.reset();
+        setState(() => _status = '회사 위치를 저장했습니다.');
+      }
+    } catch (error) {
+      if (mounted) setState(() => _status = '$error');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => _pipLayout
+      ? Scaffold(
+          backgroundColor: Colors.black,
+          body: SizedBox.expand(
+              child: HandCamera(key: _cameraKey, onPrediction: _prediction)))
+      : Scaffold(
+          appBar: AppBar(
+              leading:
+                  Navigator.of(context).canPop() ? const BackButton() : null,
+              title: const Text('단축키 실행'),
+              actions: [
+                Builder(
+                    builder: (context) => IconButton(
+                        tooltip: '메뉴',
+                        icon: const Icon(Icons.menu),
+                        onPressed: () => Scaffold.of(context).openEndDrawer())),
+              ]),
+          endDrawer: Drawer(
+              child: SafeArea(
+                  child: ListView(children: [
+            ListTile(
+                leading: const CircleAvatar(child: Icon(Icons.person)),
+                title: const Text('서연님'),
+                subtitle: const Text('데모 사용자'),
+                trailing: IconButton(
+                    tooltip: '메뉴 닫기',
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context))),
+            const Divider(),
+            ListTile(
+                leading: const Icon(Icons.apps),
+                title: const Text('단축키 실행'),
+                onTap: () => Navigator.pop(context)),
+            ListTile(
+                leading: const Icon(Icons.chat),
+                title: const Text('LLM 비서'),
+                onTap: _busy ? null : () => _openAssistant()),
+            const Divider(),
+            _menuItem(
+                Icons.person_outline,
+                '프로필 설정',
+                () => _menuMessage(
+                    '프로필 설정', '서연님\nSignBridge 데모 사용자\n현재 데모 계정으로 사용 중입니다.')),
+            _menuItem(Icons.info_outline, '서비스 안내',
+                () => _openMenuPage(const GuidePage())),
+            _menuItem(
+                Icons.campaign_outlined,
+                '공지사항',
+                () => _menuMessage('공지사항',
+                    'SignBridge에 오신 것을 환영합니다.\n단축키 실행과 LLM 비서를 이용할 수 있습니다.')),
+            _menuItem(Icons.people_outline, '커뮤니티',
+                () => _menuMessage('커뮤니티', '사용 경험을 나누는 커뮤니티를 준비 중입니다.')),
+            _menuItem(Icons.support_agent, '고객센터',
+                () => _menuMessage('고객센터', '메뉴의 서비스 안내에서 동작 가이드를 확인할 수 있습니다.')),
+            const Divider(),
+            _menuItem(
+                Icons.logout,
+                '로그아웃',
+                () => _menuMessage(
+                    '데모 계정', '현재 데모 계정으로 사용 중이며 별도의 로그인은 필요하지 않습니다.')),
+          ]))),
+          body: SafeArea(
+              child: Center(
+                  child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 640),
+            child: ListView(padding: const EdgeInsets.all(20), children: [
+              const Badge('수어 입력 → LLM 해석 → 확인 후 실행', icon: Icons.translate),
+              if (!kIsWeb &&
+                  defaultTargetPlatform == TargetPlatform.android) ...[
+                const SizedBox(height: 12),
+                SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('백그라운드 인식'),
+                    subtitle: const Text('다른 앱을 사용해도 인식 계속 · 알림에서 중지'),
+                    value: _backgroundEnabled,
+                    onChanged: _busy ||
+                            _developerMode ||
+                            _backgroundBusy ||
+                            _pipEntering
+                        ? null
+                        : (value) => _setBackground(value)),
+                SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('백그라운드에서 PiP 표시'),
+                    subtitle: const Text('끄면 작은 창 없이 인식합니다'),
+                    value: _pipEnabled,
+                    onChanged:
+                        _backgroundBusy || _pipEntering ? null : _setPip),
+                ElevatedButton.icon(
+                    icon: const Icon(Icons.picture_in_picture_alt),
+                    label: const Text('백그라운드 실행'),
+                    onPressed: _busy ||
+                            _developerMode ||
+                            _pipEntering ||
+                            _backgroundBusy
+                        ? null
+                        : _runBackground),
+                const Text(
+                    '백그라운드 인식이 켜져 있으면 PiP 창을 닫아도 촬영을 계속합니다. '
+                    '작은 창에는 단어·신뢰도·처리 FPS가 표시됩니다. '
+                    '단어만 모으며 기능을 자동 실행하지 않습니다. 앱에서 입력을 가져와 확인하세요.',
+                    style: TextStyle(color: muted, fontSize: 12)),
+                if (_pipError != null)
+                  Text(_pipError!, style: const TextStyle(color: danger)),
+                TextButton(
+                    onPressed: _busy || _backgroundBusy ? null : _takeBackgroundInput,
+                    child: const Text('백그라운드 입력 가져오기')),
+                TextButton(
+                    onPressed: _notificationSettings,
+                    child: const Text('앱 알림 설정')),
+              ],
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('개발자 모드'),
+                subtitle: const Text('단어 버튼으로 LLM 입력을 테스트합니다'),
+                value: _developerMode,
+                onChanged: _busy || _backgroundBusy
+                    ? null
+                    : (value) async {
+                        if (_backgroundEnabled &&
+                            !await _setBackground(false)) {
+                          return;
+                        }
+                        if (!mounted) return;
+                        setState(() {
+                          _developerMode = value;
+                          _developerGloss.clear();
+                          _gate.reset();
+                          _translation = '';
+                          _status = value ? '테스트할 단어를 눌러 주세요.' : '인식 대기 중';
+                        });
+                      },
+              ),
+              if (_developerMode) ...[
+                const Text('버튼은 LLM 입력으로 전달합니다. 확인 없이 기능을 실행하지 않습니다.'),
+                const SizedBox(height: 12),
+                Wrap(spacing: 8, runSpacing: 8, children: [
+                  ...shortcutCommands.keys.map((word) => OutlinedButton(
+                        onPressed: _busy || !_foreground
+                            ? null
+                            : () => _testWord(word),
+                        child: Text('테스트: $word'),
+                      )),
+                ]),
+                gap,
+                GlossTestPanel(
+                    text: _developerGloss.join(' '),
+                    disabled: _busy || !_foreground,
+                    onWord: (word) => setState(() => _developerGloss.add(word)),
+                    onUndo: () => setState(() => _developerGloss.removeLast()),
+                    onClear: () => setState(() => _developerGloss.clear()),
+                    onSubmit: () => _openAssistant(
+                        fromDrawer: false,
+                        initialGloss: _developerGloss.join(' '),
+                        developerMode: true)),
+              ],
+              gap,
+              if (!_assistantOpen && !_developerMode)
+                SizedBox(
+                    height: 300,
+                    child:
+                        HandCamera(key: _cameraKey, onPrediction: _prediction)),
+              gap,
+              Text(_translation.isEmpty ? '수어를 보여 주세요.' : '번역: $_translation',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 22)),
+              const SizedBox(height: 12),
+              Text(_status, textAlign: TextAlign.center),
+              if (!_developerMode) ...[
+                ElevatedButton(key: const Key('recognition-submit'),
+                  onPressed: _busy || _foregroundGloss.isEmpty ? null : () => _openAssistant(
+                    fromDrawer: false, initialGloss: _foregroundGloss.join(' ')),
+                  child: const Text('입력 완료 · LLM 비서로 보내기')),
+                TextButton(onPressed: _busy || _foregroundGloss.isEmpty ? null : () => setState(() {
+                  _foregroundGloss.clear(); _translation = ''; _gate.reset(requireRelease: true);
+                }), child: const Text('입력 비우기')),
+              ],
+              if (_busy) const Center(child: Text('처리 중…')),
+              if (!_developerMode && !_gate.armed && !_busy) ...[
+                gap,
+                PrimaryButton('다시 인식하기', _restartRecognition)
+              ],
+              gap,
+              Panel(
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: const [
+                    Text('인식한 단어는 LLM 입력으로 전달합니다.'),
+                    SizedBox(height: 12),
+                    Text('백그라운드 입력도 앱에서 해석·확인한 뒤 실행합니다.'),
+                    SizedBox(height: 12),
+                    Text('엄마·아프다만으로 전화하지 않습니다.'),
+                    SizedBox(height: 12),
+                    Text('위(방향) / 아래 → 확인 후 미디어 볼륨 조절'),
+                  ])),
+              gap,
+              OutlinedButton(
+                  onPressed: _busy ? null : _registerCompany,
+                  child: const Text('회사 위치 등록 / 변경')),
+              gap,
+              const Text(
+                  '입력 완료 후 내용을 확인하세요. 그렇다로 승인하고 틀리다로 다시 입력할 수 있습니다.'),
+              const SizedBox(height: 12),
+              const Text(
+                  '백그라운드 입력은 앱 프로세스가 유지되는 동안만 보관됩니다.',
+                  style: TextStyle(color: muted)),
+            ]),
+          ))),
+        );
+}
+
+class _CompanyDialog extends StatefulWidget {
+  const _CompanyDialog({required this.initial});
+  final String initial;
+  @override
+  State<_CompanyDialog> createState() => _CompanyDialogState();
+}
+
+class _CompanyDialogState extends State<_CompanyDialog> {
+  final _name = TextEditingController(),
+      _lat = TextEditingController(),
+      _lng = TextEditingController();
+  String? _error;
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initial.isNotEmpty) {
+      final data = jsonDecode(widget.initial) as Map<String, dynamic>;
+      _name.text = data['name'] as String;
+      _lat.text = '${data['lat']}';
+      _lng.text = '${data['lng']}';
+    }
+  }
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _lat.dispose();
+    _lng.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    final lat = double.tryParse(_lat.text.trim()),
+        lng = double.tryParse(_lng.text.trim());
+    if (_name.text.trim().isEmpty ||
+        lat == null ||
+        lng == null ||
+        !lat.isFinite ||
+        !lng.isFinite ||
+        lat < 31.43 ||
+        lat > 44.35 ||
+        lng < 122.37 ||
+        lng > 132) {
+      setState(() => _error = '회사 이름과 유효한 국내 위치 좌표를 입력해 주세요.');
+      return;
+    }
+    Navigator.pop(context,
+        jsonEncode({'name': _name.text.trim(), 'lat': lat, 'lng': lng}));
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+          title: const Text('회사 위치 등록'),
+          content: SingleChildScrollView(
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Text('네이버맵 길찾기에 사용할 회사 위치 좌표를 입력해 주세요.'),
+            TextField(
+                controller: _name,
+                decoration: const InputDecoration(labelText: '회사 이름')),
+            TextField(
+                controller: _lat,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(
+                    labelText: '위도', hintText: '예: 37.5665')),
+            TextField(
+                controller: _lng,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(
+                    labelText: '경도', hintText: '예: 126.9780')),
+            if (_error != null)
+              Text(_error!, style: const TextStyle(color: danger)),
+          ])),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('취소')),
+            TextButton(onPressed: _save, child: const Text('저장')),
+          ]);
+}

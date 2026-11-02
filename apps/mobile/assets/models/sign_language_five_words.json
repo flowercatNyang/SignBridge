@@ -1,0 +1,28 @@
+{
+  "source_sha256": "32dfa40bb2aade9660138189353012a7a78a492b6a68803770af8dc5d1e84d32",
+  "onnx_sha256": "bbd0ce692d115cff18342d8a5cfae585b105d9f48aae087fe62028eeedd25987",
+  "input_shape": [
+    1,
+    30,
+    452
+  ],
+  "classes": 5,
+  "opset": 17,
+  "class_order": [
+    "아프다",
+    "위",
+    "아래",
+    "회사",
+    "엄마"
+  ],
+  "feature_config": {
+    "sequence_length": 30,
+    "base_feature_dim": 150,
+    "velocity_dim": 150,
+    "acceleration_dim": 150,
+    "hand_mask_dim": 2,
+    "input_dim": 452
+  },
+  "validation_cases": 16,
+  "max_absolute_logit_error": 2.6226043701171875e-06
+}
