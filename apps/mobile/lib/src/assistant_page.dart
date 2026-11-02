@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'actions.dart';
 import 'assistant_client.dart';
 import 'design.dart';
@@ -28,6 +30,8 @@ class _AssistantPageState extends State<AssistantPage>
   final _history = <Map<String, String>>[];
   final _gate = RecognitionGate();
   final _actions = DeviceActions();
+  static const _background = MethodChannel('signbridge/background');
+  bool get _android => !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
   AssistantReply? _reply;
   String _inputType = 'text', _status = '';
   bool _busy = false, _camera = false, _foreground = true;
@@ -40,6 +44,42 @@ class _AssistantPageState extends State<AssistantPage>
     _developerMode = widget.developerMode;
     _input.text = widget.initialGloss;
     if (widget.initialGloss.isNotEmpty) _inputType = 'gloss';
+    if (_android) _stopBackground();
+  }
+
+  Future<void> _stopBackground() async {
+    try {
+      await _background.invokeMethod('setEnabled', false);
+    } on MissingPluginException {
+      // Older installs have no background service.
+    } on PlatformException catch (error) {
+      if (mounted) setState(() => _status = error.message ?? '백그라운드 인식을 중지하지 못했습니다.');
+    }
+  }
+
+  Future<void> _takeBackgroundInput() async {
+    if (_busy) return;
+    setState(() { _busy = true; _camera = false; });
+    try {
+      final text = await _background.invokeMethod<String>('takeInput') ?? '';
+      if (!mounted) return;
+      if (text.isEmpty) {
+        setState(() => _status = '가져올 백그라운드 입력이 없습니다.');
+      } else {
+        _reset();
+        setState(() {
+          _input.text = text;
+          _inputType = 'gloss';
+          _status = '백그라운드 입력을 가져왔습니다. 입력 완료를 눌러 해석해 주세요.';
+        });
+      }
+    } on PlatformException catch (error) {
+      if (mounted) setState(() => _status = error.message ?? '입력을 가져오지 못했습니다.');
+    } on MissingPluginException {
+      if (mounted) setState(() => _status = '백그라운드 입력은 Android 앱에서 지원합니다.');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   @override
@@ -218,6 +258,9 @@ class _AssistantPageState extends State<AssistantPage>
         description('수어 인식 결과를 한국어 번역 후보로 정리하고 알람·문자 작성·볼륨 조절을 도와드립니다. '
             '의미가 다르거나 빠졌다면 수정해 주세요.'),
         const SizedBox(height: 12),
+        if (_android) OutlinedButton(key: const Key('assistant-background-input'),
+          onPressed: _busy ? null : _takeBackgroundInput,
+          child: const Text('백그라운드 입력 가져오기')),
         TextButton(onPressed: _busy ? null : () async {
           setState(() => _camera = false);
           await Navigator.push<void>(context, MaterialPageRoute(builder: (_) => const TranslationPage()));

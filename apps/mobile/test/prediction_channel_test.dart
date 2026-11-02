@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:testsign/src/demo_app.dart';
 import 'package:testsign/src/hand_camera/hand_camera.dart';
+import 'home_test_helpers.dart';
 
 void main() {
   testWidgets('Native channel accumulates mom without making a phone call', (tester) async {
@@ -28,6 +29,7 @@ void main() {
       messenger.setMockMethodCallHandler(actionChannel, null);
     });
     await tester.pumpWidget(const SignBridgeApp());
+    await openAssistant(tester);
     expect(find.byType(HandCamera), findsNothing);
     await tester.ensureVisible(find.text('수어 입력 시작'));
     await tester.tap(find.text('수어 입력 시작'));

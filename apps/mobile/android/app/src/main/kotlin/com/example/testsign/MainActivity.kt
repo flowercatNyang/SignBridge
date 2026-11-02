@@ -1,16 +1,17 @@
 package com.example.testsign
 
 import android.Manifest
-import android.app.AlarmManager
-import android.app.NotificationManager
+import android.app.PictureInPictureParams
+import android.content.res.Configuration
 import android.os.Build
-import android.provider.Settings
+import android.util.Rational
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.AudioManager
 import android.net.Uri
 import android.provider.ContactsContract
 import android.provider.AlarmClock
+import android.widget.Toast
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodCall
@@ -18,10 +19,176 @@ import io.flutter.plugin.common.MethodChannel
 import org.json.JSONObject
 import java.util.Calendar
 
+import android.app.AlarmManager
+import android.app.NotificationManager
+import android.provider.Settings
+
 class MainActivity: FlutterActivity() {
+    private var pipChannel: MethodChannel? = null
+    private var backgroundChannel: MethodChannel? = null
+    private var resumed = false
+
+    fun backgroundStateChanged() {
+        backgroundChannel?.invokeMethod("changed", RecognitionService.state(this))
+    }
+
+    override fun onResume() {
+        super.onResume()
+        resumed = true
+        RecognitionService.attach(this, true)
+        backgroundStateChanged()
+        consumeBackgroundCommand(intent)
+    }
+
+    override fun onPause() {
+        resumed = false
+        RecognitionService.attach(this, false)
+        RecognitionService.prepareNotifications(this)
+        super.onPause()
+    }
+
+    override fun onDestroy() {
+        RecognitionService.detached(this)
+        super.onDestroy()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (resumed) consumeBackgroundCommand(intent)
+    }
+
+    private fun consumeBackgroundCommand(intent: Intent?) {
+        val token = intent?.getStringExtra("backgroundCommandToken") ?: return
+        intent.removeExtra("backgroundCommandToken")
+        RecognitionService.consumeCommand(token) ?: return
+        Toast.makeText(this, "앱에서 백그라운드 입력 가져오기를 눌러 확인해 주세요.", Toast.LENGTH_LONG).show()
+    }
+
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        if (RecognitionService.isEnabled() && !enteringPip &&
+            getSharedPreferences("signbridge", MODE_PRIVATE).getBoolean("backgroundPip", true) &&
+            Build.VERSION.SDK_INT >= 26 && !isInPictureInPictureMode && HandCameraView.isCameraReady()) {
+            try {
+                enteringPip = true
+                HandCameraView.setCompact(true)
+                if (!enterPictureInPictureMode(PictureInPictureParams.Builder().setAspectRatio(Rational(3, 4)).build())) {
+                    enteringPip = false
+                    HandCameraView.setCompact(false)
+                }
+            } catch (error: Exception) {
+                enteringPip = false
+                HandCameraView.setCompact(false)
+            }
+        }
+    }
+    private var enteringPip = false
+    fun keepCameraInPip(): Boolean = enteringPip ||
+        (Build.VERSION.SDK_INT >= 26 && isInPictureInPictureMode)
+
+    override fun onPictureInPictureModeChanged(inPip: Boolean, config: Configuration) {
+        super.onPictureInPictureModeChanged(inPip, config)
+        enteringPip = false
+        HandCameraView.setCompact(inPip)
+        pipChannel?.invokeMethod("changed", inPip)
+    }
+
+    override fun onStop() {
+        enteringPip = false
+        pipChannel?.invokeMethod("changed", false)
+        super.onStop()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        val inPip = Build.VERSION.SDK_INT >= 26 && isInPictureInPictureMode
+        HandCameraView.setCompact(inPip)
+        pipChannel?.invokeMethod("changed", inPip)
+    }
+
     private var pending: Pair<MethodCall, MethodChannel.Result>? = null
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        RecognitionService.attach(this, false)
+        backgroundChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "signbridge/background")
+        backgroundChannel!!.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "state" -> result.success(RecognitionService.state(this))
+                "takeInput" -> {
+                    RecognitionService.disable(this)
+                    result.success(RecognitionService.takeInput())
+                }
+                "notificationSettings" -> {
+                    try {
+                        val settings = if (Build.VERSION.SDK_INT >= 26)
+                            Intent("android.settings.APP_NOTIFICATION_SETTINGS")
+                                .putExtra("android.provider.extra.APP_PACKAGE", packageName)
+                        else Intent("android.settings.APPLICATION_DETAILS_SETTINGS", Uri.parse("package:$packageName"))
+                        startActivity(settings)
+                        result.success(null)
+                    } catch (error: Exception) {
+                        result.error("settings_failed", "앱 알림 설정을 열 수 없습니다.", null)
+                    }
+                }
+                "setPip" -> {
+                    getSharedPreferences("signbridge", MODE_PRIVATE).edit()
+                        .putBoolean("backgroundPip", call.arguments == true).apply()
+                    result.success(RecognitionService.state(this))
+                }
+                "setEnabled" -> {
+                    if (call.arguments != true) {
+                        RecognitionService.disable(this)
+                        result.success(RecognitionService.state(this))
+                    } else if (!resumed || !HandCameraView.isCameraReady()) {
+                        result.error("camera_unavailable", "앱에서 카메라 영상이 나온 뒤 백그라운드 인식을 켜 주세요.", null)
+                    } else if (!getSystemService(android.app.NotificationManager::class.java).areNotificationsEnabled()) {
+                        result.error("notifications_disabled", "알림 설정에서 SignBridge 알림을 허용해 주세요. 인식 중지와 입력 확인에 필요합니다.", null)
+                    } else {
+                        RecognitionService.enable(this, RecognitionService.Ready { error ->
+                            if (error == null) result.success(RecognitionService.state(this))
+                            else result.error("background_failed", error, null)
+                        })
+                    }
+                }
+                "hide" -> {
+                    if (!RecognitionService.isEnabled()) result.error("disabled", "백그라운드 인식을 먼저 켜 주세요.", null)
+                    else result.success(moveTaskToBack(true))
+                }
+                "resetGate" -> { RecognitionService.resetGate(); result.success(null) }
+                else -> result.notImplemented()
+            }
+        }
+        pipChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "signbridge/pip")
+        pipChannel!!.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "enter" -> {
+                    if (Build.VERSION.SDK_INT < 26 ||
+                        !packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)) {
+                        result.error("unsupported", "이 기기는 PiP 백그라운드 실행을 지원하지 않습니다.", null)
+                    } else if (!HandCameraView.isCameraReady()) {
+                        result.error("camera_unavailable", "카메라 권한을 허용하고 영상이 나온 뒤 다시 눌러 주세요.", null)
+                    } else {
+                        try {
+                            enteringPip = true
+                            HandCameraView.setCompact(true)
+                            val entered = enterPictureInPictureMode(PictureInPictureParams.Builder()
+                                .setAspectRatio(Rational(3, 4)).build())
+                            if (!entered) {
+                                enteringPip = false
+                                HandCameraView.setCompact(false)
+                            }
+                            result.success(entered)
+                        } catch (error: Exception) {
+                            enteringPip = false
+                            HandCameraView.setCompact(false)
+                            result.error("pip_failed", "PiP 실행에 실패했습니다. 앱 설정에서 화면 속 화면 권한을 확인해 주세요.", null)
+                        }
+                    }
+                }
+                else -> result.notImplemented()
+            }
+        }
         flutterEngine.platformViewsController.registry.registerViewFactory(
             "signbridge/hand-camera", HandCameraView.Factory(this, flutterEngine.dartExecutor.binaryMessenger))
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "signbridge/actions")

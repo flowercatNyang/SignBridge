@@ -27,6 +27,9 @@ class _HandCameraState extends State<HandCamera> {
             _channel = MethodChannel('signbridge/predictions/$id');
             _channel!.setMethodCallHandler((call) async {
               if (mounted && call.method == 'prediction') {
+                // Native owns background actions even if Flutter's lifecycle message is delayed.
+                if (call.arguments is Map &&
+                    call.arguments['handledByService'] == true) return;
                 final prediction = SignPrediction.fromMessage(call.arguments);
                 widget.onPrediction
                     ?.call(prediction ?? const SignPrediction('', 0));

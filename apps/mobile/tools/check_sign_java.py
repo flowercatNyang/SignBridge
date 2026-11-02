@@ -31,3 +31,8 @@ with (out/'temporal.bin').open('wb') as f:
         f.write(struct.pack('>13560f',*case['expected']))
 subprocess.run(['javac','-encoding','UTF-8','-cp',str(out),'-d',str(out),str(root/'test/SignTemporalFeaturesCheck.java')],check=True)
 subprocess.run(['java','-cp',str(out),'com.example.testsign.SignTemporalFeaturesCheck',str(out/'temporal.bin')],check=True)
+
+subprocess.run(['javac','-encoding','UTF-8','-d',str(out),
+                str(root/'android/app/src/main/java/com/example/testsign/BackgroundCommandGate.java'),
+                str(root/'test/BackgroundCommandGateCheck.java')],check=True)
+subprocess.run(['java','-cp',str(out),'com.example.testsign.BackgroundCommandGateCheck'],check=True)

@@ -57,6 +57,7 @@ flutter:
   # the material Icons class.
   uses-material-design: true
   assets:
+    - assets/branding/signbridge_sb.png
     - assets/hand_landmarker.task
     - assets/pose_landmarker_lite.task
     - assets/models/

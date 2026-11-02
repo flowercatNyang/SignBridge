@@ -12,6 +12,41 @@ Future<void> largeSurface(WidgetTester tester) async {
 }
 
 void main() {
+  testWidgets('Background input is imported as gloss and never executed on arrival', (tester) async {
+    await largeSurface(tester);
+    final calls = <MethodCall>[];
+    final requests = <String>[];
+    const background = MethodChannel('signbridge/background');
+    const actions = MethodChannel('signbridge/actions');
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(background, (call) async {
+      if (call.method == 'takeInput') return '엄마 나 아프다';
+      return {'enabled': false};
+    });
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(actions, (call) async {
+      calls.add(call); return '';
+    });
+    addTearDown(() {
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(background, null);
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(actions, null);
+    });
+    await tester.pumpWidget(MaterialApp(home: AssistantPage(request: ({
+      required String baseUrl, required String accessToken, required String text,
+      required String inputType, required List<Map<String, String>> history,
+    }) async {
+      requests.add('$inputType:$text');
+      return const AssistantReply(translation: '나 아파', question: '엄마에게 문자로 전달할까요?', action: null, mode: 'mock');
+    })));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('assistant-background-input')));
+    await tester.pumpAndSettle();
+    expect(calls, isEmpty); expect(requests, isEmpty);
+    expect(tester.widget<TextField>(find.byKey(const Key('assistant-input'))).controller!.text, '엄마 나 아프다');
+    await tester.tap(find.byKey(const Key('assistant-submit')));
+    await tester.pumpAndSettle();
+    expect(requests, ['gloss:엄마 나 아프다']);
+    expect(calls, isEmpty);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.android));
+
   testWidgets('Direction up needs approval and changes volume exactly once', (tester) async {
     await largeSurface(tester);
     final calls = <MethodCall>[];

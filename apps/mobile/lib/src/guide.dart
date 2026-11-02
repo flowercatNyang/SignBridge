@@ -30,12 +30,10 @@ const guides = [
 ];
 
 class GuidePage extends StatelessWidget {
-  const GuidePage({Key? key, required this.onTab}) : super(key: key);
-  final ValueChanged<int> onTab;
+  const GuidePage({Key? key}) : super(key: key);
   @override
   Widget build(BuildContext context) => Scaffold(
       appBar: AppBar(title: const Text('SignBridge'), centerTitle: true),
-      bottomNavigationBar: DemoNavigation(onTap: onTab),
       body: SafeArea(
           child: Center(
               child: ConstrainedBox(
@@ -43,7 +41,7 @@ class GuidePage extends StatelessWidget {
                   child: ListView(padding: const EdgeInsets.all(20), children: [
                     heading('동작 가이드'),
                     const SizedBox(height: 8),
-                    description('향후 사용할 동작 예시를 확인하세요. 현재는 손 관절점만 추적합니다.'),
+                    description('아래 동작은 향후 기능을 위한 시안입니다. 실제 수어 입력은 카메라 또는 LLM 비서에서 시작하세요.'),
                     gap,
                     ...guides.map((guide) => Padding(
                         padding: const EdgeInsets.only(bottom: 16),
@@ -83,8 +81,8 @@ class GuidePage extends StatelessWidget {
                                       onPressed: () => Navigator.push(
                                           context,
                                           MaterialPageRoute<void>(
-                                              builder: (_) => GuideDetail(
-                                                  guide: guide, onTab: onTab))),
+                                              builder: (_) =>
+                                                  GuideDetail(guide: guide))),
                                       icon: const Icon(Icons.arrow_forward,
                                           size: 18),
                                       label: const Text('상세 가이드'))),
@@ -94,14 +92,11 @@ class GuidePage extends StatelessWidget {
 }
 
 class GuideDetail extends StatelessWidget {
-  const GuideDetail({Key? key, required this.guide, required this.onTab})
-      : super(key: key);
+  const GuideDetail({Key? key, required this.guide}) : super(key: key);
   final GestureGuide guide;
-  final ValueChanged<int> onTab;
   @override
   Widget build(BuildContext context) => Scaffold(
       appBar: AppBar(title: const Text('동작 상세 가이드'), centerTitle: true),
-      bottomNavigationBar: DemoNavigation(onTap: onTab),
       body: SafeArea(
           child: Center(
               child: ConstrainedBox(
