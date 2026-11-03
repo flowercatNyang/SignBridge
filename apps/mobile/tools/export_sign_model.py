@@ -1,6 +1,6 @@
 """Export a v2 checkpoint and verify ONNX against PyTorch on CPU.
 
-Dependencies: torch, numpy, onnx==1.19.1, onnxruntime==1.20.1.
+Validated with torch, numpy, onnx==1.16.2, onnxruntime==1.20.1.
 Run from the repository root: python apps/mobile/tools/export_sign_model.py
 """
 import hashlib

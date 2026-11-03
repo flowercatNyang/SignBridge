@@ -4,7 +4,7 @@ import numpy as np
 from PIL import ImageFont, ImageDraw, Image
 import torch
 from .models import SignLanguageModel
-from .vocabulary import LABEL_MAP, NUM_CLASSES, WORDS
+from .vocabulary import LABEL_MAP, NUM_CLASSES, WORDS, DISPLAY_LABELS
 
 def put_korean_text(img, text, position, font_size, color):
     """
@@ -50,9 +50,10 @@ def load_models_and_maps(base_dir, device, checkpoint_path=None):
     korean_dict = dict(WORDS)
     if os.path.exists(dict_path):
         with open(dict_path, "r", encoding="utf-8") as f:
-            korean_dict = json.load(f)
+            korean_dict.update(json.load(f))
 
-    idx_to_label = {class_idx: korean_dict.get(word_key, word_key) for word_key, class_idx in label_map.items()}
+    idx_to_label = {class_idx: DISPLAY_LABELS.get(word_key, korean_dict.get(word_key, word_key))
+                    for word_key, class_idx in label_map.items()}
     
     # with open(category_map_path, "r", encoding="utf-8") as f:
     #     cat_map_data = json.load(f)
@@ -60,7 +61,7 @@ def load_models_and_maps(base_dir, device, checkpoint_path=None):
     # categories = cat_map_data["categories"]
     # menu_number_map = {int(k): v for k, v in cat_map_data["menu_number_map"].items()}
     # all_menu_indices = cat_map_data["all_menu_indices"]
-    categories = [{"id": 1, "name": "아프다 · 위 · 아래 · 회사 · 엄마", "indices": list(range(NUM_CLASSES))}]
+    categories = [{"id": 1, "name": " · ".join(idx_to_label.values()), "indices": list(range(NUM_CLASSES))}]
     menu_number_map = {}
     all_menu_indices = list(range(NUM_CLASSES))
 
@@ -75,7 +76,7 @@ def load_models_and_maps(base_dir, device, checkpoint_path=None):
         )
     model = SignLanguageModel(**checkpoint["model_config"]).to(device)
     if model.config["num_classes"] != NUM_CLASSES or checkpoint.get("label_map") != LABEL_MAP:
-        raise ValueError("Checkpoint vocabulary does not match the active five-word experiment")
+        raise ValueError(f"Checkpoint vocabulary does not match the active {NUM_CLASSES}-class profile")
     model.load_state_dict(checkpoint["model_state"])
     
     model.eval()

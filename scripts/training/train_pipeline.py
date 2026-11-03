@@ -221,11 +221,16 @@ def main():
     parser.add_argument("--stage2-epochs", type=int, default=10)
     parser.add_argument("--stage3-epochs", type=int, default=20)
     parser.add_argument("--mask-ratio", type=float, default=0.3)
+    parser.add_argument("--disable-cudnn", action="store_true",
+                        help="Use native PyTorch CUDA kernels when the installed cuDNN training path is unstable")
     args = parser.parse_args()
     if args.batch_size <= 0 or args.batch_size % 2:
         parser.error("--batch-size must be a positive even number")
     if not 0.0 < args.mask_ratio < 1.0:
         parser.error("--mask-ratio must be between 0 and 1")
+
+    if args.disable_cudnn:
+        torch.backends.cudnn.enabled = False
 
     torch.manual_seed(args.seed)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -274,7 +279,7 @@ def main():
 
     # model = SignLanguageModel(num_classes=73, input_dim=INPUT_DIM).to(device)
     model = SignLanguageModel(num_classes=NUM_CLASSES, input_dim=INPUT_DIM).to(device)
-    print(f"Device: {device}; classes: {NUM_CLASSES}; splits: "
+    print(f"Device: {device}; cuDNN: {torch.backends.cudnn.enabled}; classes: {NUM_CLASSES}; splits: "
           f"{ {name: len(rows) for name, rows in splits.items()} }", flush=True)
     history = {}
     history["stage0"] = run_stage0(
@@ -350,6 +355,7 @@ def main():
         json.dump({"held_out_signer": args.held_out_signer,
                    "validation_signer": args.validation_signer,
                    "seed": args.seed,
+                   "cudnn_enabled": torch.backends.cudnn.enabled,
                    "counts": {name: len(rows) for name, rows in splits.items()},
                    "training_signers": sorted(signer_map),
                    "label_map": LABEL_MAP, "words": WORDS}, handle, ensure_ascii=False, indent=2)
