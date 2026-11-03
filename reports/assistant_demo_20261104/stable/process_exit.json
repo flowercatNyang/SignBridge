@@ -1,0 +1,27 @@
+{
+  "command": [
+    "D:\\Exp\\Project\\.venv\\Scripts\\python.exe",
+    "scripts/training/train_pipeline.py",
+    "--held-out-signer",
+    "박세준",
+    "--validation-signer",
+    "김정우",
+    "--output-dir",
+    "models/assistant_demo_loso_20261104_stable",
+    "--report-dir",
+    "reports\\assistant_demo_20261104\\stable",
+    "--batch-size",
+    "64",
+    "--stage0-epochs",
+    "20",
+    "--stage1-epochs",
+    "20",
+    "--stage2-epochs",
+    "10",
+    "--stage3-epochs",
+    "20",
+    "--disable-cudnn"
+  ],
+  "returncode": 0,
+  "hex_returncode": "0x0"
+}

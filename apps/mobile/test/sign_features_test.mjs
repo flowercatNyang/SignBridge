@@ -66,20 +66,26 @@ for (const c of temporalCases) test('Python temporal parity: '+c.name,()=> {
   assert.deepEqual(window,actual);
 });
 
-test('Five labels follow the checkpoint class order',()=> {
+test('Deployed labels follow checkpoint order and display overrides',()=> {
+  const config=JSON.parse(readFileSync(new URL('../assets/models/sign_model.json',import.meta.url)));
+  const report=JSON.parse(readFileSync(new URL('../assets/'+config.model.replace(/\.onnx$/,'.json'),import.meta.url)));
   const map=JSON.parse(readFileSync(new URL('../assets/data/core_label_map.json',import.meta.url)));
   const words=JSON.parse(readFileSync(new URL('../assets/data/core_ksl_word_dictionary.json',import.meta.url)));
-  const labels=[];
-  for(const [word,index] of Object.entries(map)) labels[index]=words[word];
-  assert.deepEqual(labels,['아프다','위','아래','회사','엄마']);
+  const labels=[],canonical=[];
+  for(const [word,index] of Object.entries(map)) {
+    canonical[index]=words[word];
+    labels[index]=config.labelOverrides?.[word] ?? words[word];
+  }
+  assert.deepEqual(canonical,report.class_order);
+  assert.equal(labels.length,report.classes);
   labels.forEach((label,i)=> {
-    const logits=new Float32Array(5); logits[i]=100;
+    const logits=new Float32Array(labels.length); logits[i]=100;
     assert.equal(predictionText(logits,labels),label+' · 100%');
   });
-  assert.equal(predictionText(new Float32Array(5),labels),'아프다 · 20%');
-  assert.throws(()=>predictionText([NaN,0,0,0,0],labels),/Invalid/);
+  assert.equal(predictionText(new Float32Array(labels.length),labels),labels[0]+' · '+Math.floor(100/labels.length)+'%');
+  const invalid=new Float32Array(labels.length); invalid[0]=NaN;
+  assert.throws(()=>predictionText(invalid,labels),/Invalid/);
   assert.throws(()=>predictionText([1],labels),/Invalid/);
-  const config=JSON.parse(readFileSync(new URL('../assets/models/sign_model.json',import.meta.url)));
   assert.equal(config.features,452);
   assert.equal(config.frames,30);
 });

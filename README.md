@@ -1,8 +1,8 @@
 # SignBridge
 
-MediaPipe 관절 특징과 경량 1D-CNN·GRU를 이용한 한국수어 단어 인식 프로젝트입니다. 현재 대상은 **아프다, 위, 아래, 회사, 엄마** 5단어입니다.
+MediaPipe 관절 특징과 경량 1D-CNN·GRU를 이용한 한국수어 단어 인식 프로젝트입니다. 현재 앱 모델은 확인 수어와 숫자 8을 포함한 **13개 클래스**입니다. 기존 5단어 모델도 비교·복구용으로 보존합니다.
 
-앱에는 **시간 HHMM → 날짜 MMDD → 수어 확인** 알람 입력과 별도 **임시 13개 클래스 학습 설정**을 준비했습니다. 장기 위(WORD2100)와 방향 위/상부(WORD2576)를 구분하며, 방향 위·아래는 확인 후 볼륨을 조절합니다. 현재 배포 모델은 기존 5단어입니다. 새 데이터 준비·학습·배포 및 테스트 순서는 [숫자·날짜 알람 가이드](docs/ASSISTANT_DIGIT_ALARMS.md)를 따르세요. 단어 인식만으로 기능을 자동 실행하지 않습니다.
+앱에는 **시간 HHMM → 날짜 MMDD → 수어 확인** 알람 입력을 구현했습니다. 장기 위(WORD2100)와 방향 위/상부(WORD2576)를 구분하며, 방향 위·아래는 확인 후 볼륨을 조절합니다. 2026-11-04에 전문가 650개와 팀원 영상 195개로 학습·평가하고 앱용 ONNX를 갱신했습니다. 테스트 수어자 1명 39개에서 Top-1은 69.23%이며 방향 위·아래에는 오류가 남아 있습니다. [실행 결과](reports/assistant_demo_20261104/RUN_SUMMARY.md)와 [데이터 준비 가이드](docs/ASSISTANT_DIGIT_ALARMS.md)를 참고하세요. 단어 인식만으로 기능을 자동 실행하지 않습니다.
 
 최신 SexyInwon의 홈·로고·백그라운드/PiP 카메라를 `apps/mobile`에 통합했습니다. 백그라운드에서는 단어만 모으며, 앱으로 가져와 해석·확인한 요청만 실행합니다. 통합 내역과 검증 범위는 [브랜치 통합 기록](docs/BRANCH_INTEGRATION.md)을 참고하세요.
 
@@ -64,12 +64,14 @@ Android 빌드와 기능 설명은 [앱 README](apps/mobile/README.md)를 참고
 
 ## 데이터 → 학습 → 평가
 
+아래 명령은 **기존 5단어 실험 재현용**입니다. 현재 13개 모델의 실행 순서와 명령은 [실행 결과](reports/assistant_demo_20261104/RUN_SUMMARY.md)에 기록했습니다.
+
 ```bash
 # 1. 기존 전문가 NPY에서 5단어 선택 + 팀 영상 전처리
-python scripts/data/prepare_five_word_data.py --source-data data/processed --raw-mov ~/Downloads/raw_mov
+python scripts/data/prepare_dataset.py --source-data data/processed --raw-mov ~/Downloads/raw_mov
 
 # 2. 전처리 결과 확인
-python scripts/data/audit_five_word_data.py
+python scripts/data/audit_dataset.py
 
 # 3. 촬영자 분리 4단계 학습
 python scripts/training/train_pipeline.py \

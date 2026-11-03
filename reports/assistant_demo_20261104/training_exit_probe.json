@@ -1,0 +1,6 @@
+{
+  "returncode": 3221226505,
+  "hex_returncode": "0xc0000409",
+  "diagnostic_only": true,
+  "note": "One epoch/stage probe; no deployment or model selection uses this diagnostic checkpoint."
+}

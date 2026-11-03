@@ -1,0 +1,37 @@
+{
+  "source_checkpoint": "models/assistant_demo_loso_20261104_stable/final.pth",
+  "source_sha256": "066d72412cc23221baa59db62898066cea007ac9a8a079e9dd9d984e984b5025",
+  "onnx_sha256": "00e55b0ec082fe08009a94e3969e9c9b7b168125cef643768fe8553b1147ded1",
+  "input_shape": [
+    1,
+    30,
+    452
+  ],
+  "classes": 13,
+  "opset": 17,
+  "class_order": [
+    "아프다",
+    "위",
+    "아래",
+    "회사",
+    "엄마",
+    "나",
+    "가깝다",
+    "매일매일",
+    "일어나다",
+    "팔",
+    "그렇다",
+    "틀리다",
+    "상부"
+  ],
+  "feature_config": {
+    "sequence_length": 30,
+    "base_feature_dim": 150,
+    "velocity_dim": 150,
+    "acceleration_dim": 150,
+    "hand_mask_dim": 2,
+    "input_dim": 452
+  },
+  "validation_cases": 16,
+  "max_absolute_logit_error": 5.245208740234375e-06
+}

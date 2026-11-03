@@ -1,0 +1,50 @@
+{
+  "held_out_signer": "박세준",
+  "validation_signer": "김정우",
+  "seed": 42,
+  "cudnn_enabled": false,
+  "counts": {
+    "stage0": 702,
+    "expert_train": 585,
+    "adapt_train": 702,
+    "validation": 65,
+    "team_validation": 39,
+    "held_out": 39,
+    "external": 0
+  },
+  "training_signers": [
+    "김건우",
+    "노태권",
+    "백인원"
+  ],
+  "label_map": {
+    "WORD1152": 0,
+    "WORD2100": 1,
+    "WORD2577": 2,
+    "WORD1592": 3,
+    "WORD1528": 4,
+    "WORD1157": 5,
+    "WORD0948": 6,
+    "WORD0932": 7,
+    "WORD1273": 8,
+    "WORD2639": 9,
+    "WORD2268": 10,
+    "WORD1359": 11,
+    "WORD2576": 12
+  },
+  "words": {
+    "WORD1152": "아프다",
+    "WORD2100": "위",
+    "WORD2577": "아래",
+    "WORD1592": "회사",
+    "WORD1528": "엄마",
+    "WORD1157": "나",
+    "WORD0948": "가깝다",
+    "WORD0932": "매일매일",
+    "WORD1273": "일어나다",
+    "WORD2639": "팔",
+    "WORD2268": "그렇다",
+    "WORD1359": "틀리다",
+    "WORD2576": "상부"
+  }
+}

@@ -1,5 +1,5 @@
 {
-  "model": "models/sign_language_five_words.onnx",
+  "model": "models/sign_language_assistant_demo.onnx",
   "labels": "data/core_label_map.json",
   "dictionary": "data/core_ksl_word_dictionary.json",
   "input": "features",
@@ -8,6 +8,8 @@
   "frames": 30,
   "features": 452,
   "labelOverrides": {
-    "WORD2100": "위(내장)"
+    "WORD2100": "위(내장)",
+    "WORD2576": "위(방향)",
+    "WORD2639": "8"
   }
 }

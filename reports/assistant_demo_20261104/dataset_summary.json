@@ -1,0 +1,299 @@
+{
+  "samples": 845,
+  "shape": [
+    30,
+    452
+  ],
+  "all_finite": true,
+  "class_counts": {
+    "아프다": {
+      "expert": 50,
+      "team": 15
+    },
+    "위": {
+      "expert": 50,
+      "team": 15
+    },
+    "아래": {
+      "expert": 50,
+      "team": 15
+    },
+    "회사": {
+      "expert": 50,
+      "team": 15
+    },
+    "엄마": {
+      "expert": 50,
+      "team": 15
+    },
+    "나": {
+      "expert": 50,
+      "team": 15
+    },
+    "가깝다": {
+      "expert": 50,
+      "team": 15
+    },
+    "매일매일": {
+      "expert": 50,
+      "team": 15
+    },
+    "일어나다": {
+      "expert": 50,
+      "team": 15
+    },
+    "팔": {
+      "expert": 50,
+      "team": 15
+    },
+    "그렇다": {
+      "expert": 50,
+      "team": 15
+    },
+    "틀리다": {
+      "expert": 50,
+      "team": 15
+    },
+    "상부": {
+      "expert": 50,
+      "team": 15
+    }
+  },
+  "signer_counts": {
+    "김건우": 39,
+    "김정우": 39,
+    "노태권": 39,
+    "박세준": 39,
+    "백인원": 39
+  },
+  "resampled_any_hand_fraction_by_signer": {
+    "김건우": 0.5846153846153848,
+    "김정우": 0.8358974358974359,
+    "노태권": 0.5017094017094015,
+    "박세준": 0.9247863247863247,
+    "백인원": 0.6273504273504272
+  },
+  "low_coverage_clips": [
+    {
+      "source_video": "C:\\Users\\sejee\\Downloads\\영상_데이터\\김정우_아프다_정면.mp4",
+      "word": "아프다",
+      "resampled_any_hand_fraction": 0.4666666666666667
+    },
+    {
+      "source_video": "C:\\Users\\sejee\\Downloads\\영상_데이터\\노태권_아프다_오.MOV",
+      "word": "아프다",
+      "resampled_any_hand_fraction": 0.16666666666666666
+    },
+    {
+      "source_video": "C:\\Users\\sejee\\Downloads\\영상_데이터\\노태권_아프다_왼.MOV",
+      "word": "아프다",
+      "resampled_any_hand_fraction": 0.36666666666666664
+    },
+    {
+      "source_video": "C:\\Users\\sejee\\Downloads\\영상_데이터\\김건우_위(내장)_위.mp4",
+      "word": "위",
+      "resampled_any_hand_fraction": 0.43333333333333335
+    },
+    {
+      "source_video": "C:\\Users\\sejee\\Downloads\\영상_데이터\\백인원_위(내장)_아래.mp4",
+      "word": "위",
+      "resampled_any_hand_fraction": 0.4666666666666667
+    },
+    {
+      "source_video": "C:\\Users\\sejee\\Downloads\\영상_데이터\\김정우_아래_정면.mp4",
+      "word": "아래",
+      "resampled_any_hand_fraction": 0.4666666666666667
+    },
+    {
+      "source_video": "C:\\Users\\sejee\\Downloads\\영상_데이터\\노태권_아래_오.MOV",
+      "word": "아래",
+      "resampled_any_hand_fraction": 0.3
+    },
+    {
+      "source_video": "C:\\Users\\sejee\\Downloads\\영상_데이터\\노태권_아래_정면.MOV",
+      "word": "아래",
+      "resampled_any_hand_fraction": 0.4
+    },
+    {
+      "source_video": "C:\\Users\\sejee\\Downloads\\영상_데이터\\백인원_아래_아래.mp4",
+      "word": "아래",
+      "resampled_any_hand_fraction": 0.4666666666666667
+    },
+    {
+      "source_video": "C:\\Users\\sejee\\Downloads\\영상_데이터\\백인원_아래_정면.MOV",
+      "word": "아래",
+      "resampled_any_hand_fraction": 0.4666666666666667
+    },
+    {
+      "source_video": "C:\\Users\\sejee\\Downloads\\영상_데이터\\노태권_회사_정면.MOV",
+      "word": "회사",
+      "resampled_any_hand_fraction": 0.36666666666666664
+    },
+    {
+      "source_video": "C:\\Users\\sejee\\Downloads\\영상_데이터\\노태권_회사_오.MOV",
+      "word": "회사",
+      "resampled_any_hand_fraction": 0.26666666666666666
+    },
+    {
+      "source_video": "C:\\Users\\sejee\\Downloads\\영상_데이터\\노태권_회사_왼.MOV",
+      "word": "회사",
+      "resampled_any_hand_fraction": 0.3333333333333333
+    },
+    {
+      "source_video": "C:\\Users\\sejee\\Downloads\\영상_데이터\\김건우_엄마_위.mov",
+      "word": "엄마",
+      "resampled_any_hand_fraction": 0.36666666666666664
+    },
+    {
+      "source_video": "C:\\Users\\sejee\\Downloads\\영상_데이터\\노태권_엄마_오.MOV",
+      "word": "엄마",
+      "resampled_any_hand_fraction": 0.4
+    },
+    {
+      "source_video": "C:\\Users\\sejee\\Downloads\\영상_데이터\\노태권_엄마_왼.MOV",
+      "word": "엄마",
+      "resampled_any_hand_fraction": 0.36666666666666664
+    },
+    {
+      "source_video": "C:\\Users\\sejee\\Downloads\\영상_데이터\\백인원_엄마_정면.MOV",
+      "word": "엄마",
+      "resampled_any_hand_fraction": 0.4666666666666667
+    },
+    {
+      "source_video": "C:\\Users\\sejee\\Downloads\\영상_데이터\\김건우_나_정면.mp4",
+      "word": "나",
+      "resampled_any_hand_fraction": 0.4666666666666667
+    },
+    {
+      "source_video": "C:\\Users\\sejee\\Downloads\\영상_데이터\\김건우_나_위.mp4",
+      "word": "나",
+      "resampled_any_hand_fraction": 0.4
+    },
+    {
+      "source_video": "C:\\Users\\sejee\\Downloads\\영상_데이터\\김건우_나_아래.mp4",
+      "word": "나",
+      "resampled_any_hand_fraction": 0.3
+    },
+    {
+      "source_video": "C:\\Users\\sejee\\Downloads\\영상_데이터\\노태권_나_오.MOV",
+      "word": "나",
+      "resampled_any_hand_fraction": 0.2
+    },
+    {
+      "source_video": "C:\\Users\\sejee\\Downloads\\영상_데이터\\노태권_나_정면.MOV",
+      "word": "나",
+      "resampled_any_hand_fraction": 0.36666666666666664
+    },
+    {
+      "source_video": "C:\\Users\\sejee\\Downloads\\영상_데이터\\노태권_나_왼.MOV",
+      "word": "나",
+      "resampled_any_hand_fraction": 0.43333333333333335
+    },
+    {
+      "source_video": "C:\\Users\\sejee\\Downloads\\영상_데이터\\백인원_나_위.mp4",
+      "word": "나",
+      "resampled_any_hand_fraction": 0.4666666666666667
+    },
+    {
+      "source_video": "C:\\Users\\sejee\\Downloads\\영상_데이터\\김건우_가깝다_정면.mp4",
+      "word": "가깝다",
+      "resampled_any_hand_fraction": 0.43333333333333335
+    },
+    {
+      "source_video": "C:\\Users\\sejee\\Downloads\\영상_데이터\\노태권_매일매일_오.MOV",
+      "word": "매일매일",
+      "resampled_any_hand_fraction": 0.3333333333333333
+    },
+    {
+      "source_video": "C:\\Users\\sejee\\Downloads\\영상_데이터\\노태권_매일매일_정면.MOV",
+      "word": "매일매일",
+      "resampled_any_hand_fraction": 0.4666666666666667
+    },
+    {
+      "source_video": "C:\\Users\\sejee\\Downloads\\영상_데이터\\김건우_일어나다_아래.mp4",
+      "word": "일어나다",
+      "resampled_any_hand_fraction": 0.43333333333333335
+    },
+    {
+      "source_video": "C:\\Users\\sejee\\Downloads\\영상_데이터\\김건우_팔(8)_위.mp4",
+      "word": "팔",
+      "resampled_any_hand_fraction": 0.36666666666666664
+    },
+    {
+      "source_video": "C:\\Users\\sejee\\Downloads\\영상_데이터\\김건우_팔(8)_아래.mp4",
+      "word": "팔",
+      "resampled_any_hand_fraction": 0.4666666666666667
+    },
+    {
+      "source_video": "C:\\Users\\sejee\\Downloads\\영상_데이터\\노태권_팔(8)_오.MOV",
+      "word": "팔",
+      "resampled_any_hand_fraction": 0.36666666666666664
+    },
+    {
+      "source_video": "C:\\Users\\sejee\\Downloads\\영상_데이터\\노태권_팔(8)_정면.MOV",
+      "word": "팔",
+      "resampled_any_hand_fraction": 0.36666666666666664
+    },
+    {
+      "source_video": "C:\\Users\\sejee\\Downloads\\영상_데이터\\백인원_팔(8)_정면.mp4",
+      "word": "팔",
+      "resampled_any_hand_fraction": 0.36666666666666664
+    },
+    {
+      "source_video": "C:\\Users\\sejee\\Downloads\\영상_데이터\\백인원_팔(8)_위.mp4",
+      "word": "팔",
+      "resampled_any_hand_fraction": 0.3333333333333333
+    },
+    {
+      "source_video": "C:\\Users\\sejee\\Downloads\\영상_데이터\\김건우_그렇다_위.mp4",
+      "word": "그렇다",
+      "resampled_any_hand_fraction": 0.36666666666666664
+    },
+    {
+      "source_video": "C:\\Users\\sejee\\Downloads\\영상_데이터\\김건우_그렇다_아래.mp4",
+      "word": "그렇다",
+      "resampled_any_hand_fraction": 0.3
+    },
+    {
+      "source_video": "C:\\Users\\sejee\\Downloads\\영상_데이터\\노태권_그렇다_왼.MOV",
+      "word": "그렇다",
+      "resampled_any_hand_fraction": 0.4666666666666667
+    },
+    {
+      "source_video": "C:\\Users\\sejee\\Downloads\\영상_데이터\\노태권_그렇다_오.MOV",
+      "word": "그렇다",
+      "resampled_any_hand_fraction": 0.3333333333333333
+    },
+    {
+      "source_video": "C:\\Users\\sejee\\Downloads\\영상_데이터\\노태권_그렇다_정면.MOV",
+      "word": "그렇다",
+      "resampled_any_hand_fraction": 0.3333333333333333
+    },
+    {
+      "source_video": "C:\\Users\\sejee\\Downloads\\영상_데이터\\백인원_그렇다_위.mp4",
+      "word": "그렇다",
+      "resampled_any_hand_fraction": 0.4666666666666667
+    },
+    {
+      "source_video": "C:\\Users\\sejee\\Downloads\\영상_데이터\\김건우_틀리다_위.mp4",
+      "word": "틀리다",
+      "resampled_any_hand_fraction": 0.4666666666666667
+    },
+    {
+      "source_video": "C:\\Users\\sejee\\Downloads\\영상_데이터\\노태권_틀리다_정면.MOV",
+      "word": "틀리다",
+      "resampled_any_hand_fraction": 0.4666666666666667
+    },
+    {
+      "source_video": "C:\\Users\\sejee\\Downloads\\영상_데이터\\노태권_위_왼.MOV",
+      "word": "상부",
+      "resampled_any_hand_fraction": 0.3
+    },
+    {
+      "source_video": "C:\\Users\\sejee\\Downloads\\영상_데이터\\노태권_위_오.MOV",
+      "word": "상부",
+      "resampled_any_hand_fraction": 0.4
+    }
+  ],
+  "coverage_note": "This measures resampled masks over the entire clip, including preparation/rest frames; it is not detector accuracy."
+}

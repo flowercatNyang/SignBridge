@@ -54,11 +54,13 @@ Android 동작 근거: [정확한 알람](https://developer.android.com/develop/
 
 걷다·귀·숫자 0~7·9는 `modules/vocabulary.py` 및 개발자 단어 버튼 목록에서 주석 처리했습니다. 그렇다·틀리다는 사용자 요청대로 유지합니다. 숫자 팔은 WORD2639이며 신체 팔 WORD1147과 다릅니다. 일어나다는 WORD1273을 사용합니다. 중복 표제어인 WORD1379를 별도 클래스로 추가하지 않았습니다. 배포 시 WORD2639는 `8`로 표시합니다.
 
-`위(내장)`는 WORD2100, `위(방향)`는 사전의 상부 WORD2576입니다. 두 동작은 별도 클래스로 학습합니다. 영상 파일은 WORD ID로 구분하는 것을 권장하며 `수어자ID_위(내장).mp4`, `수어자ID_위(방향).mp4` 별칭도 지원합니다. 새 임시 목록에서는 `수어자ID_위.mp4`처럼 모호한 파일명을 거부합니다. 과거 5개 설정에서는 이 이름을 WORD2100으로 매핑했으므로 실제 방향 동작을 촬영했다면 파일명과 라벨을 수정하고 다시 전처리해야 합니다. 기존 모델의 잘못 섞인 라벨은 표시명만 바꿔서 고칠 수 없습니다.
+`위(내장)`는 WORD2100, `위(방향)`는 사전의 상부 WORD2576입니다. 두 동작은 별도 클래스로 학습합니다. 현재 `prepare_assistant_data.py`의 기본 파일명 형식은 **시연자_단어뜻_방향**입니다. 이 형식에서는 `시연자_위_정면.mp4`를 방향 WORD2576으로, `시연자_위(내장)_정면.mp4`를 장기 WORD2100으로, `시연자_팔(8)_정면.mp4`를 숫자 WORD2639로 구분합니다. WORD ID 표기도 지원합니다.
 
-볼륨 경로는 `위(방향)`/`아래` → LLM의 `adjust_volume` → 사용자 확인 → Android 미디어 볼륨 한 단계 조절입니다. 장기 위는 볼륨 명령에서 제외합니다. 기존 배포 모델의 WORD2100 출력도 위(내장)으로 표시하며, 방향 위 인식에는 13개 모델 학습·배포가 필요합니다. 데이터 준비 전에는 개발자 버튼으로 위(방향)/아래를 시험할 수 있습니다.
+기존 `시연자_방향_단어` 영상은 `--filename-format signer-angle-word`를 명시해야 합니다. 이 예전 형식의 모호한 ‘위’는 거부합니다. 과거 5개 설정에서는 ‘위’를 WORD2100으로 매핑했으므로 실제 방향 동작을 촬영했다면 파일명과 라벨을 수정하고 다시 전처리해야 합니다. 기존 모델의 잘못 섞인 라벨은 표시명만 바꿔서 고칠 수 없습니다.
 
-임시 모델은 숫자 8만 인식할 수 있으므로 `1305`, `1205`, `0800` 전체를 수어만으로 입력할 수 없습니다. 날짜·시간 화면에는 **0~9 수동 키패드**를 개발자 모드와 관계없이 유지했습니다. 학습 제외된 숫자는 키패드로 보완합니다. 새 13개 모델을 배포하기 전에는 기존 5개 단어만 카메라에서 인식합니다.
+볼륨 경로는 `위(방향)`/`아래` → LLM의 `adjust_volume` → 사용자 확인 → Android 미디어 볼륨 한 단계 조절입니다. 장기 위는 볼륨 명령에서 제외합니다. 2026-11-04에 13개 모델 학습·평가·ONNX 변환을 실행했습니다. 테스트 영상에서는 방향 위·아래가 각각 0/3으로 인식 성능이 부족합니다. [실행 결과](../reports/assistant_demo_20261104/RUN_SUMMARY.md)를 확인하고 실제 기기에서 검증하세요. 개발자 버튼으로 실행 흐름 자체를 별도로 시험할 수 있습니다.
+
+임시 모델은 숫자 8만 인식할 수 있으므로 `1305`, `1205`, `0800` 전체를 수어만으로 입력할 수 없습니다. 날짜·시간 화면에는 **0~9 수동 키패드**를 개발자 모드와 관계없이 유지했습니다. 학습 제외된 숫자는 키패드로 보완합니다. 현재 앱 자산은 13개 모델로 갱신했으며 이미 설치된 앱에는 재빌드·설치가 필요합니다.
 
 ### 1. 전문가 데이터 준비
 
@@ -68,9 +70,11 @@ Android 동작 근거: [정확한 알람](https://developer.android.com/develop/
 
 현재 저장소의 73개 전문가 라벨 맵에는 활성 목록 중 **WORD0948 가깝다, WORD0932 매일매일, WORD2268 그렇다, WORD1359 틀리다, WORD2576 상부** 5개가 없습니다. 해당 전문가 데이터가 다른 위치에 있는지 확인하거나 준비해야 합니다. 나머지 ID가 맵에 있다는 사실만으로 실제 데이터 품질·수량 검증까지 완료된 것은 아닙니다.
 
+로컬 `data/raw_json/train/extracted`에 이 클래스의 관절 JSON이 있다면 `extend_expert_data.py`로 보충할 수 있습니다. 기존 NPY 클래스는 그대로 유지하고 빠진 클래스만 OpenPose 3D 관절에서 기존 150차원 특징 규칙으로 변환해 50개씩 추가합니다. 원본 NPY를 덮어쓰지 않습니다. 좌표 표현을 맞추는 처리이며 OpenPose와 MediaPipe의 검출 오차·분포가 같아지는 것은 아닙니다.
+
 ### 2. 팀원 영상 준비
 
-파일명은 `수어자ID_WORD2639.mp4`, `수어자ID_정면_WORD2268.mov`처럼 **ID 표기**를 권장합니다. `수어자ID_팔.mp4` 같은 활성 단어 이름도 지원합니다. 각 파일은 한 단어/숫자 한 자리 동작입니다. 날짜 전체를 한 영상 클래스로 만들지 않습니다.
+파일명은 `수어자ID_WORD2639_정면.mp4`, `수어자ID_그렇다_왼.mov`처럼 **시연자_단어뜻_방향**으로 작성합니다. 각 파일은 한 단어/숫자 한 자리 동작입니다. 날짜 전체를 한 영상 클래스로 만들지 않습니다.
 
 시작 최소 수량은 클래스당 총 3개입니다. LOSO 테스트 수어자, 검증 수어자, 학습 수어자가 서로 달라야 하므로 **최소 세 명이 모든 클래스에 참여**해야 합니다. 가능하면 수어자마다 여러 회 촬영하세요. 회차는 `signerA_take01_WORD2639.mp4`처럼 중간 토큰으로 구분할 수 있습니다. 학습 배치는 전문가:팀원을 약 1:1로 oversampling합니다.
 
@@ -80,13 +84,16 @@ Android 동작 근거: [정확한 알람](https://developer.android.com/develop/
 
 ```powershell
 python -m pip install -r requirements.txt
-python -m pip install onnx==1.19.1 onnxruntime==1.20.1
+python -m pip install onnx==1.16.2 onnxruntime==1.20.1
 
 $env:SIGNBRIDGE_VOCABULARY = 'assistant_demo'
 
-python scripts/data/prepare_assistant_data.py --source-data D:/SignBridge/expert --raw-mov D:/SignBridge/team
+# 기존 73개 NPY에 빠진 클래스가 있고 로컬 전문가 JSON이 준비된 경우 한 번 실행
+python scripts/data/extend_expert_data.py --output-root data/expert_assistant_demo
 
-python scripts/training/train_pipeline.py --held-out-signer signerC --validation-signer signerB --output-dir models/assistant_demo_loso
+python scripts/data/prepare_assistant_data.py --source-data data/expert_assistant_demo --raw-mov "$env:USERPROFILE/Downloads/영상_데이터"
+
+python scripts/training/train_pipeline.py --held-out-signer signerC --validation-signer signerB --output-dir models/assistant_demo_loso --disable-cudnn
 
 python scripts/evaluation/evaluate_model.py --checkpoint models/assistant_demo_loso/final.pth --output reports/assistant_demo_loso/evaluation.json
 
@@ -94,6 +101,8 @@ python apps/mobile/tools/export_sign_model.py --checkpoint models/assistant_demo
 ```
 
 `signerA/B/C`는 실제 파일명에 쓰인 ID로 변경합니다. 새 데이터는 `data/processed_assistant_demo`에 만들어지며, 새 모델의 메타데이터와 라벨 맵도 함께 배포됩니다. 내보내기는 학습이 끝나고 평가 결과를 확인한 뒤 실행하세요. 앱을 다시 빌드해야 새 모델이 포함됩니다.
+
+이 PC의 설치된 Torch 개발 버전에서는 기본 학습 경로가 저장 후 비정상 종료하는 문제가 재현됐습니다. `--disable-cudnn`으로 GPU 학습을 정상 종료한 결과를 사용했습니다. 정확한 원인과 진단 기록은 실행 보고서에 남겼으며, 다른 환경에서 이 옵션이 반드시 필요한 것은 아닙니다.
 
 기존 5개 모델로 되돌리려면:
 

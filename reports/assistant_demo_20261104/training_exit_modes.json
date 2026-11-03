@@ -1,0 +1,12 @@
+[
+  {
+    "mode": "cudnn_disabled",
+    "returncode": 0,
+    "hex_returncode": "0x0"
+  },
+  {
+    "mode": "cpu",
+    "returncode": 3221226505,
+    "hex_returncode": "0xc0000409"
+  }
+]
