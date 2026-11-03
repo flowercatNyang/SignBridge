@@ -6,7 +6,7 @@
 
 ## API 키 입력 위치
 
-이 PC에는 빈 `backend/.env`를 만들어 두었습니다. 두 번째 줄에 발급받은 키를 입력하세요.
+`backend/.env`의 `NVIDIA_API_KEY` 항목에 발급받은 키를 입력하세요.
 
 ```dotenv
 NVIDIA_API_KEY=발급받은_실제_키
@@ -18,7 +18,17 @@ NVIDIA_API_KEY=발급받은_실제_키
 Copy-Item backend/.env.example backend/.env
 ```
 
-기본 모델은 NVIDIA API의 `nvidia/nemotron-3-super-120b-a12b`입니다. 이전 기본 모델은 실제 호출에서 410 Gone을 반환해 교체했습니다. 해당 모델 이용 권한이 없거나 다른 모델을 쓰려면 `NVIDIA_MODEL`을 수정하세요. 키와 모델/모드 설정 변경 후 서버를 재시작합니다. 운영체제 환경변수로 설정한 값이 `.env`보다 우선합니다.
+기본 모델은 NVIDIA API의 `nvidia/nemotron-3.5-lightning-30b-a3b`입니다. 2026-11-04에 기존 Super 모델의 추론 요청이 404를 반환해, 실제 알람 명령 생성과 수어 조합 해석이 성공한 Lightning 모델로 교체했습니다. Lightning은 내부 추론 256토큰, 전체 출력 2048토큰으로 제한해 JSON 응답 공간을 확보합니다. 키와 모델/모드 설정 변경 후 서버를 재시작합니다. 운영체제 환경변수로 설정한 값이 `.env`보다 우선합니다.
+
+### 다른 PC에서 서버 실행
+
+1. Sejun의 최신 코드를 pull합니다. Python 3.10 이상이면 별도 학습 패키지 없이 서버를 실행할 수 있습니다.
+2. `backend/.env`가 없을 때만 위 템플릿을 복사하고 API 키를 입력합니다. 기존 `.env`는 pull로 갱신되지 않으므로 `NVIDIA_MODEL=nvidia/nemotron-3.5-lightning-30b-a3b`를 직접 확인합니다.
+3. USB 없이 접속하려면 PC와 휴대전화를 같은 공유기에 연결합니다. PC는 유선이어도 됩니다. `.env`에서 `HOST=0.0.0.0`과 충분히 긴 `ASSISTANT_ACCESS_TOKEN`을 설정합니다. 각 항목은 별도 줄에 작성합니다.
+4. 저장소 루트에서 `python -m backend.server`를 실행합니다. `ipconfig`로 새 PC의 IPv4 주소를 확인하고 앱 주소를 `http://새_PC_IP:8000`으로 바꿉니다. 앱 연결 토큰은 `.env`와 동일하게 입력합니다.
+5. 휴대전화 브라우저에서 `http://새_PC_IP:8000/health`를 확인한 뒤 앱에서 알람 예시를 해석합니다. 상태 확인 성공은 NVIDIA 추론 성공과 별개입니다. 연결되지 않으면 Windows 방화벽의 개인 네트워크 접근 허용을 확인합니다.
+
+API 키와 연결 토큰은 Git에 포함하지 않습니다. 이번 백엔드 수정만 적용할 때에는 APK 재빌드가 필요하지 않습니다.
 
 ## 백엔드 실행
 

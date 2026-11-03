@@ -18,7 +18,7 @@ class AssistantError(Exception):
 @dataclass(frozen=True)
 class Settings:
     api_key: str = ""
-    model: str = "nvidia/nemotron-3-super-120b-a12b"
+    model: str = "nvidia/nemotron-3.5-lightning-30b-a3b"
     base_url: str = "https://integrate.api.nvidia.com/v1"
     mode: str = "nvidia"
     access_token: str = ""

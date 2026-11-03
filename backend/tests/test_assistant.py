@@ -109,7 +109,8 @@ class AssistantTest(unittest.TestCase):
     def test_nvidia_request_and_response_contract(self):
         completion = {"choices": [{"finish_reason": "stop", "message": {"content": json.dumps(ALARM)}}]}
         with patch("backend.assistant.request.urlopen", return_value=io.BytesIO(json.dumps(completion).encode())) as call:
-            result = interpret({"text": "오전 7시에 알람 설정"}, Settings(api_key="test-private-key"))
+            result = interpret({"text": "오전 7시에 알람 설정"}, Settings(
+                api_key="test-private-key", model="nvidia/nemotron-3-super-120b-a12b"))
         self.assertEqual(result["mode"], "nvidia")
         self.assertEqual(result["action"]["arguments"]["hour"], 7)
         sent = call.call_args.args[0]
@@ -125,8 +126,9 @@ class AssistantTest(unittest.TestCase):
         completion = {"choices": [{"finish_reason": "stop", "message": {"content": json.dumps(ALARM)}}]}
         with patch("backend.assistant.request.urlopen", return_value=io.BytesIO(json.dumps(completion).encode())) as call:
             result = interpret({"text": "매일매일 일어나다 8", "input_type": "gloss"},
-                               Settings(api_key="test-key", model="nvidia/nemotron-3.5-lightning-30b-a3b"))
+                               Settings(api_key="test-key"))
         payload = json.loads(call.call_args.args[0].data)
+        self.assertEqual(payload["model"], "nvidia/nemotron-3.5-lightning-30b-a3b")
         self.assertEqual(payload["reasoning_budget"], 256)
         self.assertEqual(payload["max_tokens"], 2048)
         self.assertIsNone(result["action"])
