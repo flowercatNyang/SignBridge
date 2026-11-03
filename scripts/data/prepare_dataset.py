@@ -1,4 +1,4 @@
-"""Select expert NPY classes and process signer_[angle_]word team videos."""
+"""Prepare expert and team sequences for the active vocabulary profile."""
 
 import argparse
 import json
@@ -9,19 +9,20 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from scripts.data.migrate_expert_npy import migrate
-from scripts.data.audit_five_word_data import audit
-from modules.preprocessing import run_preprocessing
+from scripts.data.audit_dataset import audit
+from modules.preprocessing import run_preprocessing, FILENAME_FORMATS, load_manifest
 from modules.vocabulary import LABEL_MAP, WORDS, PROCESSED_NAME
 from modules.paths import DATA_DIR, PROJECT_ROOT
 
 
-def main():
+def main(filename_format="signer-angle-word"):
     parser = argparse.ArgumentParser()
     parser.add_argument("--source-data", type=Path, default=DATA_DIR / "processed")
     parser.add_argument("--raw-mov", type=Path, default=Path.home() / "Downloads" / "raw_mov")
     parser.add_argument("--project-dir", type=Path, default=PROJECT_ROOT)
     parser.add_argument("--processed-root", type=Path, default=DATA_DIR / PROCESSED_NAME)
     parser.add_argument("--overwrite", action="store_true")
+    parser.add_argument("--filename-format", choices=FILENAME_FORMATS, default=filename_format)
     args = parser.parse_args()
     # Fail before creating output files if the source arrays cannot cover the vocabulary.
     source_map_path = args.source_data / "core_label_map.json"
@@ -39,13 +40,13 @@ def main():
     (root / "core_ksl_word_dictionary.json").write_text(
         json.dumps(WORDS, ensure_ascii=False, indent=2), encoding="utf-8")
     manifest = root / "manifest.csv"
-    if args.overwrite or not manifest.exists():
+    if args.overwrite or not any(row['domain'] == 'expert' for row in load_manifest(manifest)):
         count, _ = migrate(args.source_data / "X_train.npy", args.source_data / "y_train.npy",
                            root, overwrite=args.overwrite)
         print(f"Selected {count} expert sequences", flush=True)
     processed, failed = run_preprocessing(args.project_dir.resolve(), root / "raw_videos",
                                          root, ("team",), args.overwrite,
-                                         args.raw_mov.resolve())
+                                         args.raw_mov.resolve(), args.filename_format)
     if failed:
         raise RuntimeError(f"{failed} video(s) failed; inspect preprocessing_failures.txt")
     print(f"Team: {processed} clips; manifest: {manifest}", flush=True)

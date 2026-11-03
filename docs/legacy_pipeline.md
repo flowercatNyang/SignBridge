@@ -11,7 +11,7 @@
 게이트는 손 미검출이 연속 5프레임일 때 버퍼를 초기화합니다. 손이 보이면 정지/대기 동작도 30프레임 창의 입력이 될 수 있으므로, 모든 비수어 동작을 구분해 무시하는 기능은 아닙니다. 짧은 미검출 1~4프레임 동안에는 기존 창의 예측이 이어질 수 있습니다.
 
 ```bash
-python scripts/data/prepare_five_word_data.py --raw-mov ~/Downloads/raw_mov
+python scripts/data/prepare_dataset.py --raw-mov ~/Downloads/raw_mov
 python scripts/training/train_pipeline.py --held-out-signer 박세준 --validation-signer 김정우 --batch-size 32 --stage0-epochs 20 --stage1-epochs 40 --stage2-epochs 15 --stage3-epochs 30 --output-dir models/five_words_loso --export-path models/sign_language_five_words.pth
 python scripts/evaluation/evaluate_model.py --checkpoint models/sign_language_five_words.pth
 python apps/webcam/handsign_translate.py

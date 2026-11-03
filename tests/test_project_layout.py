@@ -10,10 +10,10 @@ class ProjectLayoutTest(unittest.TestCase):
             self.assertTrue((MEDIAPIPE_DIR / name).is_file())
         for relative in (
             "apps/webcam/handsign_translate.py",
-            "scripts/data/prepare_five_word_data.py",
+            "scripts/data/prepare_dataset.py",
             "scripts/data/preprocess_videos.py",
             "scripts/data/migrate_expert_npy.py",
-            "scripts/data/audit_five_word_data.py",
+            "scripts/data/audit_dataset.py",
             "scripts/training/train_pipeline.py",
             "scripts/evaluation/evaluate_model.py",
         ):

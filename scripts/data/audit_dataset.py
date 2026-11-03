@@ -1,4 +1,4 @@
-"""Count processed samples and record resampled hand-detection coverage."""
+"""Audit active-vocabulary samples and resampled hand-detection coverage."""
 
 import argparse
 import csv

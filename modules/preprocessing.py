@@ -18,6 +18,7 @@ from .paths import DATA_DIR, PROJECT_ROOT
 
 
 VIDEO_EXTENSIONS = {".mp4", ".avi", ".mov", ".mkv", ".webm"}
+FILENAME_FORMATS = ("signer-angle-word", "signer-word-angle")
 # EXPECTED_PER_CLASS = {"expert": 50, "team": 9}  # Previous 73-word experiment.
 DOMAINS = ("expert", "team", "external")
 
@@ -89,18 +90,25 @@ def process_video(video_path, hand_landmarker, pose_landmarker, frame_stride=2):
     return build_temporal_features(frame_features, hand_masks)
 
 
-def parse_team_filename(video_path):
-    """Two tokens mean frontal; three tokens carry the camera angle."""
+def parse_team_filename(video_path, filename_format="signer-angle-word"):
+    """Use an explicit layout: words such as 위/아래 can also be camera angles."""
+    if filename_format not in FILENAME_FORMATS:
+        raise ValueError(f"Unknown filename format: {filename_format}")
     parts = unicodedata.normalize("NFC", Path(video_path).stem).split("_")
     if len(parts) == 2:
         signer, word = parts
         angle = "정면"
     elif len(parts) == 3:
-        signer, angle, word = parts
+        if filename_format == "signer-word-angle":
+            signer, word, angle = parts
+        else:
+            signer, angle, word = parts
     else:
         raise ValueError(f"Expected signer_[angle_]word: {video_path}")
     if not signer or not angle:
         raise ValueError(f"Empty signer or angle: {video_path}")
+    if filename_format == "signer-word-angle":
+        word = {"위": "WORD2576", "팔(8)": "WORD2639"}.get(word, word)
     if word == "위" and "WORD2576" in WORDS:
         raise ValueError(f"Ambiguous 위: use WORD2100/위(내장) or WORD2576/위(방향): {video_path}")
     matches = [word] if word in WORDS else [key for key, name in WORDS.items()
@@ -174,7 +182,8 @@ def validate_counts(rows, label_map, domains):
         raise ValueError(f"Dataset count validation failed:\n{preview}")
 
 
-def run_preprocessing(project_dir, raw_root, processed_root, domains, overwrite=False, flat_team_root=None):
+def run_preprocessing(project_dir, raw_root, processed_root, domains, overwrite=False, flat_team_root=None,
+                      filename_format="signer-angle-word"):
     label_map_path = processed_root / "core_label_map.json"
     with label_map_path.open("r", encoding="utf-8") as handle:
         label_map = json.load(handle)
@@ -203,7 +212,7 @@ def run_preprocessing(project_dir, raw_root, processed_root, domains, overwrite=
             try:
                 angle = "unknown"
                 if flat:
-                    signer_id, angle, class_key = parse_team_filename(video_path)
+                    signer_id, angle, class_key = parse_team_filename(video_path, filename_format)
                 else:
                     signer_id = find_signer_id(video_path, domain, domain_root)
                 output_path = _output_path(
@@ -249,6 +258,7 @@ def main():
     parser.add_argument("--domain", choices=DOMAINS, action="append")
     parser.add_argument("--overwrite", action="store_true")
     parser.add_argument("--flat-team-root", type=Path)
+    parser.add_argument("--filename-format", choices=FILENAME_FORMATS, default="signer-angle-word")
     args = parser.parse_args()
     domains = tuple(args.domain or DOMAINS)
     processed, failed = run_preprocessing(
@@ -258,6 +268,7 @@ def main():
         domains,
         args.overwrite,
         args.flat_team_root.resolve() if args.flat_team_root else None,
+        args.filename_format,
     )
     print(f"Processed {processed} videos. Failed {failed}.")
 
