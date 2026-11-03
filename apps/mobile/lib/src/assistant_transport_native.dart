@@ -9,7 +9,10 @@ Future<Map<String, dynamic>> postAssistantJson(
     request.followRedirects = false;
     request.headers.contentType = ContentType.json;
     if (token.isNotEmpty) request.headers.set('Authorization', 'Bearer $token');
-    request.write(jsonEncode(payload));
+    final body = utf8.encode(jsonEncode(payload));
+    // The backend requires a fixed byte length rather than chunked transfer.
+    request.contentLength = body.length;
+    request.add(body);
     final response = await request.close().timeout(const Duration(seconds: 50));
     final bytes = <int>[];
     await for (final chunk in response.timeout(const Duration(seconds: 10))) {
