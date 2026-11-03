@@ -221,6 +221,10 @@ def interpret(data, settings):
     if settings.model == "nvidia/nemotron-3-super-120b-a12b":
         payload.update({"temperature": 1.0, "top_p": 0.95,
                         "chat_template_kwargs": {"enable_thinking": False}})
+    elif settings.model == "nvidia/nemotron-3.5-lightning-30b-a3b":
+        # Reserve output space for the JSON rather than spending it on reasoning.
+        payload.update({"temperature": 1.0, "top_p": 0.95,
+                        "max_tokens": 2048, "reasoning_budget": 256})
     call = request.Request(settings.base_url + "/chat/completions",
                            data=json.dumps(payload).encode("utf-8"), method="POST",
                            headers={"Authorization": "Bearer " + settings.api_key,
@@ -232,7 +236,7 @@ def interpret(data, settings):
             raise AssistantError("LLM 응답이 너무 큽니다.", 502)
         completion = json.loads(raw)
         if completion["choices"][0].get("finish_reason") == "length":
-            raise AssistantError("LLM 응답이 잘렸습니다. 요청을 짧게 나눠 주세요.", 502)
+            raise AssistantError("LLM이 응답 생성 한도에 도달했습니다. 실행하지 않았습니다. 잠시 후 다시 시도해 주세요.", 502)
         content = completion["choices"][0]["message"]["content"]
         if not isinstance(content, str):
             raise AssistantError("LLM 응답이 비어 있습니다.", 502)
