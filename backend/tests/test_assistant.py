@@ -122,15 +122,16 @@ class AssistantTest(unittest.TestCase):
         self.assertFalse(payload["stream"])
         self.assertEqual(payload["chat_template_kwargs"], {"enable_thinking": False})
 
-    def test_lightning_limits_reasoning_and_reserves_json_output(self):
+    def test_lightning_disables_reasoning_and_reserves_json_output(self):
         completion = {"choices": [{"finish_reason": "stop", "message": {"content": json.dumps(ALARM)}}]}
         with patch("backend.assistant.request.urlopen", return_value=io.BytesIO(json.dumps(completion).encode())) as call:
             result = interpret({"text": "매일매일 일어나다 8", "input_type": "gloss"},
                                Settings(api_key="test-key"))
         payload = json.loads(call.call_args.args[0].data)
         self.assertEqual(payload["model"], "nvidia/nemotron-3.5-lightning-30b-a3b")
-        self.assertEqual(payload["reasoning_budget"], 256)
-        self.assertEqual(payload["max_tokens"], 2048)
+        self.assertEqual(payload["chat_template_kwargs"], {"enable_thinking": False})
+        self.assertNotIn("reasoning_budget", payload)
+        self.assertEqual(payload["max_tokens"], 4096)
         self.assertIsNone(result["action"])
         self.assertTrue(result["question"])
 

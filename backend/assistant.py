@@ -224,7 +224,7 @@ def interpret(data, settings):
     elif settings.model == "nvidia/nemotron-3.5-lightning-30b-a3b":
         # Reserve output space for the JSON rather than spending it on reasoning.
         payload.update({"temperature": 1.0, "top_p": 0.95,
-                        "max_tokens": 2048, "reasoning_budget": 256})
+                        "max_tokens": 4096, "chat_template_kwargs": {"enable_thinking": False}})
     call = request.Request(settings.base_url + "/chat/completions",
                            data=json.dumps(payload).encode("utf-8"), method="POST",
                            headers={"Authorization": "Bearer " + settings.api_key,
