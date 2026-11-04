@@ -48,6 +48,117 @@ void main() {
   setUp(() => AssistantConnection.instance.resetForTesting());
   tearDown(() => AssistantConnection.instance.resetForTesting());
 
+  testWidgets(
+      'A new request after a completed translation gets a new original text',
+      (tester) async {
+    await surface(tester);
+    final requests = <Map<String, dynamic>>[];
+    await tester.pumpWidget(MaterialApp(home: TranslationPage(assistantRequest:
+        (
+            {required String baseUrl,
+            required String accessToken,
+            required String text,
+            required String inputType,
+            required List<Map<String, String>> history}) async {
+      requests.add({'text': text, 'type': inputType, 'history': history});
+      return AssistantReply(
+          translation: text,
+          question: requests.length == 2 ? null : '맞나요?',
+          action: null,
+          mode: 'mock');
+    })));
+    await tester.pumpAndSettle();
+    await sign(tester, '엄마');
+    await sign(tester, '그렇다');
+    await tester.pumpAndSettle();
+    await sign(tester, '그렇다');
+    await tester.pumpAndSettle();
+    await sign(tester, '회사');
+    await sign(tester, '그렇다');
+    await tester.pumpAndSettle();
+    expect(requests.last['text'], '회사');
+    expect(requests.last['type'], 'gloss');
+    expect(requests.last['history'], isEmpty);
+    expect(find.text('원래 요청: 회사'), findsOneWidget);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
+
+  testWidgets(
+      'Transport confirmation sends the full mother request, never yes alone',
+      (tester) async {
+    await surface(tester);
+    final requests = <Map<String, dynamic>>[];
+    await tester.pumpWidget(MaterialApp(home: TranslationPage(assistantRequest:
+        (
+            {required String baseUrl,
+            required String accessToken,
+            required String text,
+            required String inputType,
+            required List<Map<String, String>> history}) async {
+      requests.add({'text': text, 'type': inputType, 'history': history});
+      return AssistantReply(
+          translation: '엄마, 나 아파요.',
+          question: requests.length == 1 ? 'LLM에 전달하시겠습니까?' : '엄마에게 문자로 알릴까요?',
+          action: null,
+          mode: 'mock');
+    })));
+    await tester.pumpAndSettle();
+    for (final word in ['엄마', '나', '아프다']) {
+      await sign(tester, word);
+    }
+    await sign(tester, '그렇다');
+    await tester.pumpAndSettle();
+    expect(requests.single['text'], '엄마 나 아프다');
+    await sign(tester, '그렇다');
+    await tester.pumpAndSettle();
+    expect(requests.length, 2);
+    expect(requests.last['text'], '엄마 나 아프다');
+    expect(requests.last['type'], 'confirmation');
+    expect((requests.last['history'] as List).first['content'],
+        contains('엄마 나 아프다'));
+    expect(
+        tester
+            .widget<TextField>(find.byKey(const Key('assistant-input')))
+            .controller!
+            .text,
+        isEmpty);
+    expect(find.text('원래 요청: 엄마 나 아프다'), findsOneWidget);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
+
+  testWidgets(
+      'A failed confirmation retains the original request and can be retried',
+      (tester) async {
+    await surface(tester);
+    final requests = <String>[];
+    await tester.pumpWidget(MaterialApp(home: TranslationPage(assistantRequest:
+        (
+            {required String baseUrl,
+            required String accessToken,
+            required String text,
+            required String inputType,
+            required List<Map<String, String>> history}) async {
+      requests.add('$inputType:$text');
+      if (requests.length == 2) throw Exception('LLM JSON 형식 오류');
+      return const AssistantReply(
+          translation: '엄마, 나 아파요.',
+          question: '맞나요?',
+          action: null,
+          mode: 'mock');
+    })));
+    await tester.pumpAndSettle();
+    await sign(tester, '엄마');
+    await sign(tester, '아프다');
+    await sign(tester, '그렇다');
+    await tester.pumpAndSettle();
+    await sign(tester, '그렇다');
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('assistant-reply')), findsOneWidget);
+    expect(find.text('원래 요청: 엄마 아프다'), findsOneWidget);
+    await sign(tester, '그렇다');
+    await tester.pumpAndSettle();
+    expect(requests,
+        ['gloss:엄마 아프다', 'confirmation:엄마 아프다', 'confirmation:엄마 아프다']);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
+
   testWidgets('Compact camera layout preserves the conversation and its camera',
       (tester) async {
     await surface(tester);
@@ -192,8 +303,15 @@ void main() {
     await sign(tester, '그렇다');
     await tester.pumpAndSettle();
     expect(requests.length, 2);
-    expect(requests.last['text'], '그렇다');
-    expect(requests.last['type'], 'text');
+    expect(requests.last['text'], '엄마 아프다');
+    expect(requests.last['type'], 'confirmation');
+    expect(
+        tester
+            .widget<TextField>(find.byKey(const Key('assistant-input')))
+            .controller!
+            .text,
+        isEmpty);
+    expect(find.text('원래 요청: 엄마 아프다'), findsOneWidget);
     expect((requests.last['history'] as List).length, 2);
     expect(actions, isEmpty);
     await sign(tester, '그렇다', lowerHands: false);

@@ -55,6 +55,18 @@ class ServerTest(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(headers["Access-Control-Allow-Origin"], "http://localhost:5300")
 
+    def test_confirmation_preserves_original_request_over_http(self):
+        source = "엄마 나 아프다"
+        history = [{"role": "user", "content": "[수어 인식 라벨] " + source},
+                   {"role": "assistant", "content": "LLM에 전달하시겠습니까?"}]
+        auth = {"Authorization": "Bearer local-test-token", "Content-Type": "application/json"}
+        for text, kind in [(source, "confirmation"), ("그렇다", "text")]:
+            raw = json.dumps({"text": text, "input_type": kind, "history": history}).encode()
+            status, _, result = self.call("POST", "/v1/interpret", raw, auth)
+            self.assertEqual(status, 200)
+            self.assertEqual(result["translation"], source)
+            self.assertIsNone(result["action"])
+
     def test_oversized_and_non_json_requests_are_rejected(self):
         auth = {"Authorization": "Bearer local-test-token", "Content-Type": "application/json"}
         self.assertEqual(self.call("POST", "/v1/interpret", b"x" * 32769, auth)[0], 413)

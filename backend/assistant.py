@@ -72,8 +72,8 @@ def validate_request(data):
         raise AssistantError("잘못된 요청 형식입니다.")
     text = text_field(data.get("text"), "text", 2000)
     input_type = data.get("input_type", "text")
-    if input_type not in ("text", "gloss"):
-        raise AssistantError("input_type은 text 또는 gloss여야 합니다.")
+    if input_type not in ("text", "gloss", "confirmation"):
+        raise AssistantError("input_type은 text, gloss 또는 confirmation이어야 합니다.")
     history = data.get("history", [])
     if not isinstance(history, list) or len(history) > 12:
         raise AssistantError("대화가 너무 깁니다. 새 요청으로 시작해 주세요.")
@@ -87,7 +87,32 @@ def validate_request(data):
         cleaned.append({"role": expected, "content": text_field(turn["content"], "history", 2000)})
     if len(cleaned) % 2:
         raise AssistantError("마지막 대화 기록은 추가 질문이어야 합니다.")
+    if input_type == "confirmation":
+        if not cleaned:
+            raise AssistantError("확인할 원래 요청과 질문 기록이 없습니다.")
+        source_text, _ = original_request(cleaned)
+        if text != source_text:
+            raise AssistantError("확인 요청의 원문이 대화 기록과 일치하지 않습니다.")
     return {"text": text, "input_type": input_type, "history": cleaned}
+
+
+def original_request(history):
+    content = history[0]["content"]
+    prefix = "[수어 인식 라벨] "
+    if content.startswith(prefix):
+        return content[len(prefix):], "gloss"
+    return content, "text"
+
+
+def model_input(data):
+    # Old APKs sent an acknowledgement as the text. Keep their root request too.
+    confirmed = data["input_type"] == "confirmation" or (
+        data["input_type"] == "text" and bool(data["history"]) and
+        data["text"] in {"그렇다", "맞아요", "맞아", "네", "예", "확인"})
+    if confirmed:
+        source, source_type = original_request(data["history"])
+        return {"text": source, "input_type": source_type, "confirmation": True}
+    return {"text": data["text"], "input_type": data["input_type"]}
 
 
 def validate_plan(data):
@@ -153,6 +178,12 @@ gloss는 한국어 문장의 단어 목록과 같지 않으며 손의 공간 지
 이전 대화가 있으면 현재 입력은 원래 요청에 대한 추가 답변이다. 원래 요청의 대상과 행동을 유지하면서 답변으로 정보를 보완하라.
 사용자가 번역 후보를 '맞아요' 등으로 확인하면 확인된 원래 요청의 translation과 실행 명령을 반환하라.
 이때 '맞아요' 문장 자체를 번역해서 끝내지 마라. 아직 정보가 부족하면 그 정보만 추가 질문하라.
+confirmation=true이면 text는 새 입력이 아니라 원래 요청이며 사용자가 직전 질문에 동의한 것이다.
+이때 대화에서 확인된 답변과 번역 후보를 유지하라. 그렇다라는 단어 자체를 번역하지 마라.
+이미 확인된 번역을 다시 확인하는 질문을 반복하지 말고, 필요한 실행 정보가 없으면 그 정보만 질문하라.
+선택 질문처럼 그렇다만으로 답을 결정할 수 없을 때에는 임의로 선택하지 말고 구체적으로 질문하라.
+요청은 이미 LLM에 도착했다. 'LLM에 전달하시겠습니까?' 같은 전송 여부 질문은 하지 마라.
+전송에 동의했다는 이유만으로 문자 작성이나 알람 설정 같은 기능을 원한다고 추측하지 마라.
 의미가 여러 가지이거나 기능 실행에 정보가 부족하면 question으로 구체적으로 확인하고 action은 null로 둬라.
 단순 설명은 번역만 하고 action=null로 둬라. '아프다'만으로 신고, 병원 검색 또는 문자를 실행하지 마라.
 수어와 한국어의 문법 차이를 단순 어순 변경으로 해결했다고 주장하지 마라.
@@ -201,10 +232,50 @@ def mock_plan(data):
     return {"translation": text, "question": question, "action": None}
 
 
+def unique_json_object(pairs):
+    value = {}
+    for key, item in pairs:
+        if key in value:
+            raise ValueError("Duplicate JSON key")
+        value[key] = item
+    return value
+
+
+def decode_completion(raw):
+    try:
+        completion = json.loads(raw)
+    except (ValueError, TypeError) as exc:
+        raise AssistantError("LLM 서버의 응답을 JSON으로 읽지 못했습니다. 실행하지 않았습니다.", 502) from exc
+    choices = completion.get("choices") if isinstance(completion, dict) else None
+    if not isinstance(choices, list) or not choices or not isinstance(choices[0], dict):
+        raise AssistantError("LLM 서버 응답에 생성 결과가 없습니다. 실행하지 않았습니다.", 502)
+    choice = choices[0]
+    if choice.get("finish_reason") == "length":
+        raise AssistantError("LLM이 응답 생성 한도에 도달했습니다. 실행하지 않았습니다. 잠시 후 다시 시도해 주세요.", 502)
+    message = choice.get("message")
+    content = message.get("content") if isinstance(message, dict) else None
+    if not isinstance(content, str) or not content.strip():
+        raise AssistantError("LLM 응답 본문이 비어 있습니다. 실행하지 않았습니다.", 502)
+    content = content.strip().lstrip("\ufeff").strip()
+    # Accept only a whole JSON value or one whole JSON code fence, never prose
+    # containing a command, multiple JSON objects, or incomplete output.
+    fence = re.fullmatch(r"```(?:json)?[ \t]*\r?\n(.*?)\r?\n?```", content,
+                         flags=re.DOTALL | re.IGNORECASE)
+    if fence:
+        content = fence.group(1).strip()
+    try:
+        plan = json.loads(content, object_pairs_hook=unique_json_object)
+    except (ValueError, TypeError) as exc:
+        raise AssistantError("LLM 답변이 올바른 JSON 형식이 아닙니다. 실행하지 않고 중단합니다.", 502) from exc
+    return validate_plan(plan)
+
+
 def interpret(data, settings):
     data = validate_request(data)
+    current_input = model_input(data)
     if settings.mode == "mock":
-        return {**validate_plan(mock_plan(data)), "mode": "mock"}
+        mock_data = {**data, "text": current_input["text"], "input_type": current_input["input_type"]}
+        return {**validate_plan(mock_plan(mock_data)), "mode": "mock"}
     if not settings.api_key:
         raise AssistantError("backend/.env에 NVIDIA_API_KEY를 입력하고 서버를 다시 시작해 주세요.", 503)
     if not settings.base_url.startswith("https://"):
@@ -216,7 +287,7 @@ def interpret(data, settings):
                    {"role": "system", "content": SYSTEM_PROMPT},
                ] + data["history"] + [
                    {"role": "user", "content": json.dumps(
-                       {"text": data["text"], "input_type": data["input_type"]}, ensure_ascii=False)},
+                       current_input, ensure_ascii=False)},
                ]}
     if settings.model == "nvidia/nemotron-3-super-120b-a12b":
         payload.update({"temperature": 1.0, "top_p": 0.95,
@@ -224,7 +295,8 @@ def interpret(data, settings):
     elif settings.model == "nvidia/nemotron-3.5-lightning-30b-a3b":
         # Reserve output space for the JSON rather than spending it on reasoning.
         payload.update({"temperature": 1.0, "top_p": 0.95,
-                        "max_tokens": 4096, "chat_template_kwargs": {"enable_thinking": False}})
+                        "max_tokens": 4096, "chat_template_kwargs": {"enable_thinking": False},
+                        "response_format": {"type": "json_object"}})
     call = request.Request(settings.base_url + "/chat/completions",
                            data=json.dumps(payload).encode("utf-8"), method="POST",
                            headers={"Authorization": "Bearer " + settings.api_key,
@@ -234,16 +306,7 @@ def interpret(data, settings):
             raw = response.read(131073)
         if len(raw) > 131072:
             raise AssistantError("LLM 응답이 너무 큽니다.", 502)
-        completion = json.loads(raw)
-        if completion["choices"][0].get("finish_reason") == "length":
-            raise AssistantError("LLM이 응답 생성 한도에 도달했습니다. 실행하지 않았습니다. 잠시 후 다시 시도해 주세요.", 502)
-        content = completion["choices"][0]["message"]["content"]
-        if not isinstance(content, str):
-            raise AssistantError("LLM 응답이 비어 있습니다.", 502)
-        content = content.strip()
-        if content.startswith("```json\n") and content.endswith("```"):
-            content = content[8:-3].strip()
-        plan = validate_plan(json.loads(content))
+        plan = decode_completion(raw)
         user_inputs = [data["text"]] + [turn["content"] for turn in data["history"] if turn["role"] == "user"]
         if (plan["action"] is not None and plan["action"]["name"] == "adjust_volume"
                 and any("위(내장)" in text for text in user_inputs)):

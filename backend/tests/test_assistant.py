@@ -8,7 +8,7 @@ from unittest.mock import patch
 from urllib.error import HTTPError, URLError
 
 from backend.assistant import (
-    AssistantError, Settings, interpret, load_env, validate_plan, validate_request,
+    AssistantError, Settings, interpret, load_env, validate_plan, validate_request, decode_completion,
 )
 
 
@@ -132,6 +132,7 @@ class AssistantTest(unittest.TestCase):
         self.assertEqual(payload["chat_template_kwargs"], {"enable_thinking": False})
         self.assertNotIn("reasoning_budget", payload)
         self.assertEqual(payload["max_tokens"], 4096)
+        self.assertEqual(payload["response_format"], {"type": "json_object"})
         self.assertIsNone(result["action"])
         self.assertTrue(result["question"])
 
@@ -150,7 +151,53 @@ class AssistantTest(unittest.TestCase):
             interpret({"text": "맞아요", "history": history}, Settings(api_key="test-key"))
         messages = json.loads(call.call_args.args[0].data)["messages"]
         self.assertEqual(messages[1:3], history)
-        self.assertEqual(json.loads(messages[-1]["content"])["text"], "맞아요")
+        latest = json.loads(messages[-1]["content"])
+        self.assertEqual(latest["text"], "오전 8 시 일어나다 알람 설정")
+        self.assertEqual(latest["input_type"], "gloss")
+        self.assertTrue(latest["confirmation"])
+
+    def test_explicit_and_legacy_confirmations_preserve_original_mother_request(self):
+        source = "엄마 나 아프다"
+        history = [{"role": "user", "content": "[수어 인식 라벨] " + source},
+                   {"role": "assistant", "content": "번역 후보: 엄마, 나 아파요.\n추가 질문: LLM에 전달하시겠습니까?"}]
+        plan = {"translation": "엄마, 나 아파요.", "question": "엄마에게 문자로 알릴까요?", "action": None}
+        raw = json.dumps({"choices": [{"finish_reason": "stop", "message": {"content": json.dumps(plan)}}]}).encode()
+        for text, kind in [(source, "confirmation"), ("그렇다", "text")]:
+            with self.subTest(input_type=kind):
+                with patch("backend.assistant.request.urlopen", return_value=io.BytesIO(raw)) as call:
+                    result = interpret({"text": text, "input_type": kind, "history": history}, Settings(api_key="test-key"))
+                latest = json.loads(json.loads(call.call_args.args[0].data)["messages"][-1]["content"])
+                self.assertEqual(latest, {"text": source, "input_type": "gloss", "confirmation": True})
+                self.assertIsNone(result["action"])
+
+    def test_confirmation_requires_matching_original_context(self):
+        history = [{"role": "user", "content": "[수어 인식 라벨] 엄마 나 아프다"},
+                   {"role": "assistant", "content": "맞나요?"}]
+        for data in [{"text": "엄마 나 아프다", "input_type": "confirmation"},
+                     {"text": "다른 요청", "input_type": "confirmation", "history": history}]:
+            with patch("backend.assistant.request.urlopen") as call:
+                with self.assertRaises(AssistantError):
+                    interpret(data, Settings(api_key="test-key"))
+                call.assert_not_called()
+
+    def test_complete_json_fences_are_supported_but_prose_and_duplicate_commands_are_not(self):
+        content = json.dumps(ALARM)
+        for wrapped in [content, "```json\n" + content + "\n```",
+                        "```\n" + content + "\n```", "```JSON\r\n" + content + "\r\n```"]:
+            raw = json.dumps({"choices": [{"finish_reason": "stop", "message": {"content": wrapped}}]}).encode()
+            self.assertEqual(decode_completion(raw), ALARM)
+        for wrapped in ["설명입니다.\n" + content, content + content,
+                        '{"translation":"test","question":null,"action":null,"action":null}']:
+            raw = json.dumps({"choices": [{"finish_reason": "stop", "message": {"content": wrapped}}]}).encode()
+            with self.assertRaises(AssistantError):
+                decode_completion(raw)
+
+    def test_bad_envelope_has_a_specific_error_without_exposing_vendor_text(self):
+        for value in [{"error": "private-response-sentinel"}, {"choices": []},
+                      {"choices": [{"message": {"content": None}}]}]:
+            with self.assertRaises(AssistantError) as context:
+                decode_completion(json.dumps(value).encode())
+            self.assertNotIn("private-response-sentinel", str(context.exception))
 
     def test_malformed_or_truncated_output_never_returns_an_action(self):
         for content, finish in [("not json", "stop"), (json.dumps(ALARM), "length")]:

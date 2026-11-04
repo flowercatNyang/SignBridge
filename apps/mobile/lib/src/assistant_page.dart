@@ -48,6 +48,7 @@ class AssistantPageState extends State<AssistantPage>
   bool get _android =>
       !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
   AssistantReply? _reply;
+  String? _originalRequestText;
   String _inputType = 'text', _status = '';
   bool _busy = false, _camera = false, _foreground = true;
   bool _developerMode = false;
@@ -237,15 +238,20 @@ class AssistantPageState extends State<AssistantPage>
       } else if (_reply?.action != null) {
         _execute(confirmed: true);
       } else if (_reply?.question != null) {
-        _input.text = '그렇다';
-        _inputType = 'text';
-        _interpret();
+        _interpret(confirmation: true);
       } else {
         setState(() => _status = '수어로 내용을 입력한 뒤 그렇다로 보내 주세요.');
       }
       return;
     }
     setState(() {
+      if (_reply != null &&
+          _reply!.question == null &&
+          _reply!.action == null) {
+        _history.clear();
+        _originalRequestText = null;
+        _reply = null;
+      }
       final previous = _inputType == 'gloss' ? _input.text.trim() : '';
       final combined = previous.isEmpty ? word : '$previous $word';
       if (combined.length > 2000) {
@@ -275,6 +281,7 @@ class AssistantPageState extends State<AssistantPage>
     setState(() {
       _gate.reset(requireRelease: true);
       _history.clear();
+      _originalRequestText = null;
       _reply = null;
       _input.clear();
       _inputType = 'text';
@@ -282,9 +289,14 @@ class AssistantPageState extends State<AssistantPage>
     });
   }
 
-  Future<void> _interpret() async {
-    final text = _input.text.trim();
+  Future<void> _interpret({bool confirmation = false}) async {
+    final text =
+        (confirmation ? _originalRequestText ?? '' : _input.text).trim();
     if (_busy) return;
+    if (confirmation && (_history.isEmpty || _reply?.question == null)) {
+      setState(() => _status = '확인할 원래 요청이 없습니다. 내용을 다시 입력해 주세요.');
+      return;
+    }
     if (text.isEmpty) {
       setState(() => _status = '요청 또는 답변을 입력해 주세요.');
       return;
@@ -293,12 +305,14 @@ class AssistantPageState extends State<AssistantPage>
       setState(() => _status = '대화가 길어졌습니다. 아니다/틀리다로 새 요청을 시작해 주세요.');
       return;
     }
-    final inputType = _inputType;
+    final inputType = confirmation ? 'confirmation' : _inputType;
+    final previousReply = _reply;
     setState(() {
+      if (_history.isEmpty) _originalRequestText = text;
       _busy = true;
       _reply = null;
       _gate.reset(requireRelease: true);
-      _addConversation('나: $text');
+      _addConversation(confirmation ? '나: 그렇다 · 직전 질문 확인' : '나: $text');
       _status = '요청을 해석하는 중…';
     });
     _notifyBusy(true);
@@ -318,7 +332,11 @@ class AssistantPageState extends State<AssistantPage>
             '${result.question == null ? '' : '\n${result.question}'}');
         _history.add({
           'role': 'user',
-          'content': inputType == 'gloss' ? '[수어 인식 라벨] $text' : text
+          'content': confirmation
+              ? '그렇다'
+              : inputType == 'gloss'
+                  ? '[수어 인식 라벨] $text'
+                  : text
         });
         _history.add({
           'role': 'assistant',
@@ -337,7 +355,12 @@ class AssistantPageState extends State<AssistantPage>
         }
       });
     } catch (error) {
-      if (mounted) setState(() => _status = '$error');
+      if (mounted)
+        setState(() {
+          // A failed confirmation is retryable without replacing the original text.
+          if (confirmation) _reply = previousReply;
+          _status = '$error';
+        });
     } finally {
       if (mounted) {
         setState(() => _busy = false);
@@ -381,6 +404,7 @@ class AssistantPageState extends State<AssistantPage>
       // Consume this plan before opening another app; returning must not replay it.
       _reply = null;
       _history.clear();
+      _originalRequestText = null;
       _input.clear();
       _gate.reset(requireRelease: true);
     });
@@ -434,6 +458,7 @@ class AssistantPageState extends State<AssistantPage>
     // Keep the latest question/plan and current input beside the fixed camera.
     for (final name in [
       'assistant-status',
+      'assistant-original-request',
       'assistant-reply',
       'assistant-input'
     ]) {
@@ -444,6 +469,10 @@ class AssistantPageState extends State<AssistantPage>
   }
 
   List<Widget> _content(BuildContext context) => [
+        if (_originalRequestText != null)
+          Text('원래 요청: $_originalRequestText',
+              key: const Key('assistant-original-request'),
+              style: const TextStyle(fontWeight: FontWeight.bold)),
         const Text('수어로 대화하기',
             key: Key('inline-conversation-title'),
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
