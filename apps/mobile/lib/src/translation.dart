@@ -7,13 +7,19 @@ import 'design.dart';
 import 'hand_camera/hand_camera.dart';
 import 'sign_commands.dart';
 import 'assistant_page.dart';
-import 'gloss_test_panel.dart';
+import 'assistant_client.dart';
 import 'guide.dart';
 
 class TranslationPage extends StatefulWidget {
-  const TranslationPage({Key? key, this.developerMode = false})
+  const TranslationPage(
+      {Key? key,
+      this.developerMode = false,
+      this.assistantRequest,
+      this.assistantExecuteAction})
       : super(key: key);
   final bool developerMode;
+  final AssistantRequester? assistantRequest;
+  final AssistantActionExecutor? assistantExecuteAction;
   @override
   State<TranslationPage> createState() => _TranslationPageState();
 }
@@ -22,8 +28,8 @@ class _TranslationPageState extends State<TranslationPage>
     with WidgetsBindingObserver {
   final _gate = RecognitionGate();
   final _actions = DeviceActions();
-  final _developerGloss = <String>[];
-  final _foregroundGloss = <String>[];
+  final _assistantKey = GlobalKey<AssistantPageState>();
+  final _assistantScroll = ScrollController();
   static const _pipChannel = MethodChannel('signbridge/pip');
   static const _backgroundChannel = MethodChannel('signbridge/background');
   bool _backgroundEnabled = false, _pipEnabled = true, _backgroundBusy = false;
@@ -34,7 +40,7 @@ class _TranslationPageState extends State<TranslationPage>
   bool _pipActive = false, _pipEntering = false, _pipLayout = false;
   bool _visible = true;
   String? _pipError;
-  String _status = '인식 대기 중', _translation = '';
+  String _status = '인식 대기 중';
   bool _busy = false,
       _foreground = true,
       _developerMode = false,
@@ -153,6 +159,7 @@ class _TranslationPageState extends State<TranslationPage>
   @override
   void dispose() {
     WidgetsBinding.instance!.removeObserver(this);
+    _assistantScroll.dispose();
     _pipChannel.setMethodCallHandler(null);
     if (_android) _backgroundChannel.setMethodCallHandler(null);
     super.dispose();
@@ -184,46 +191,17 @@ class _TranslationPageState extends State<TranslationPage>
         _backgroundSyncing ||
         !_foreground ||
         _pipEntering ||
-        ModalRoute.of(context)?.isCurrent != true) {
-      return;
-    }
-    final word = _gate.accept(prediction);
-    setState(() {
-      if (word != null && word != '그렇다' && word != '틀리다' &&
-          _foregroundGloss.join(' ').length + word.length + 1 <= 2000) {
-        _foregroundGloss.add(word);
-      }
-      _translation = _foregroundGloss.join(' ');
-      // Keep the action result/error visible while the same sign is held.
-      if (_gate.armed) {
-        _status = prediction.text.isEmpty
-            ? '입력 대기 중 · 수어를 보여 주세요.'
-            : prediction.confidence.isFinite
-                ? '신뢰도 ${(prediction.confidence * 100).floor()}% · 단어를 모으는 중입니다.'
-                : '인식 결과를 다시 확인하는 중입니다.';
-      }
-    });
-  }
-
-  void _testWord(String word) {
-    if (!_developerMode ||
-        _busy ||
-        !_foreground ||
         ModalRoute.of(context)?.isCurrent != true) return;
-    _gate.reset();
-    setState(() => _translation = word);
-    _openAssistant(fromDrawer: false, initialGloss: word, developerMode: true);
+    _assistantKey.currentState?.acceptPrediction(prediction);
   }
 
-  void _restartRecognition() {
-    if (_android) {
-      _backgroundChannel.invokeMethod('resetGate').catchError((_) => null);
+  void _assistantBusyChanged(bool busy) {
+    if (!mounted) return;
+    setState(() => _busy = busy);
+    if (!busy && _assistantScroll.hasClients) {
+      _assistantScroll.animateTo(0,
+          duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
     }
-    setState(() {
-      _gate.reset();
-      _translation = '';
-      _status = _developerMode ? '테스트할 단어를 눌러 주세요.' : '새 동작을 보여 주세요.';
-    });
   }
 
   Future<void> _openAssistant(
@@ -234,27 +212,21 @@ class _TranslationPageState extends State<TranslationPage>
     if (_backgroundEnabled && !await _setBackground(false)) return;
     if (!mounted) return;
     if (fromDrawer) Navigator.pop(context);
-    setState(() {
-      _assistantOpen = true;
-      _gate.reset();
-    });
-    await Navigator.push<void>(
-        context,
-        MaterialPageRoute(
-            builder: (_) => AssistantPage(
-                initialGloss: initialGloss, developerMode: developerMode)));
-    if (mounted) setState(() {
-      _assistantOpen = false;
-      _foregroundGloss.clear();
-      _translation = '';
-      _gate.reset(requireRelease: true);
-    });
+    if (initialGloss.isNotEmpty) {
+      _assistantKey.currentState?.importGloss(initialGloss);
+    }
+    if (developerMode) setState(() => _developerMode = true);
+    if (_assistantScroll.hasClients) {
+      _assistantScroll.animateTo(0,
+          duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
+    }
   }
 
   Future<void> _takeBackgroundInput() async {
     if (_busy || _backgroundBusy) return;
     try {
-      final text = await _backgroundChannel.invokeMethod<String>('takeInput') ?? '';
+      final text =
+          await _backgroundChannel.invokeMethod<String>('takeInput') ?? '';
       if (!mounted) return;
       setState(() => _backgroundEnabled = false);
       if (text.isEmpty) {
@@ -355,215 +327,193 @@ class _TranslationPageState extends State<TranslationPage>
   }
 
   @override
-  Widget build(BuildContext context) => _pipLayout
-      ? Scaffold(
-          backgroundColor: Colors.black,
-          body: SizedBox.expand(
-              child: HandCamera(key: _cameraKey, onPrediction: _prediction)))
-      : Scaffold(
-          appBar: AppBar(
-              leading:
-                  Navigator.of(context).canPop() ? const BackButton() : null,
-              title: const Text('단축키 실행'),
-              actions: [
-                Builder(
-                    builder: (context) => IconButton(
-                        tooltip: '메뉴',
-                        icon: const Icon(Icons.menu),
-                        onPressed: () => Scaffold.of(context).openEndDrawer())),
-              ]),
-          endDrawer: Drawer(
-              child: SafeArea(
-                  child: ListView(children: [
-            ListTile(
-                leading: const CircleAvatar(child: Icon(Icons.person)),
-                title: const Text('서연님'),
-                subtitle: const Text('데모 사용자'),
-                trailing: IconButton(
-                    tooltip: '메뉴 닫기',
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(context))),
-            const Divider(),
-            ListTile(
-                leading: const Icon(Icons.apps),
-                title: const Text('단축키 실행'),
-                onTap: () => Navigator.pop(context)),
-            ListTile(
-                leading: const Icon(Icons.chat),
-                title: const Text('LLM 비서'),
-                onTap: _busy ? null : () => _openAssistant()),
-            const Divider(),
-            _menuItem(
-                Icons.person_outline,
-                '프로필 설정',
-                () => _menuMessage(
-                    '프로필 설정', '서연님\nSignBridge 데모 사용자\n현재 데모 계정으로 사용 중입니다.')),
-            _menuItem(Icons.info_outline, '서비스 안내',
-                () => _openMenuPage(const GuidePage())),
-            _menuItem(
-                Icons.campaign_outlined,
-                '공지사항',
-                () => _menuMessage('공지사항',
-                    'SignBridge에 오신 것을 환영합니다.\n단축키 실행과 LLM 비서를 이용할 수 있습니다.')),
-            _menuItem(Icons.people_outline, '커뮤니티',
-                () => _menuMessage('커뮤니티', '사용 경험을 나누는 커뮤니티를 준비 중입니다.')),
-            _menuItem(Icons.support_agent, '고객센터',
-                () => _menuMessage('고객센터', '메뉴의 서비스 안내에서 동작 가이드를 확인할 수 있습니다.')),
-            const Divider(),
-            _menuItem(
-                Icons.logout,
-                '로그아웃',
-                () => _menuMessage(
-                    '데모 계정', '현재 데모 계정으로 사용 중이며 별도의 로그인은 필요하지 않습니다.')),
-          ]))),
-          body: SafeArea(
-              child: Center(
-                  child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 640),
-            child: ListView(padding: const EdgeInsets.all(20), children: [
-              const Badge('수어 입력 → LLM 해석 → 확인 후 실행', icon: Icons.translate),
-              if (!kIsWeb &&
-                  defaultTargetPlatform == TargetPlatform.android) ...[
-                const SizedBox(height: 12),
-                SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('백그라운드 인식'),
-                    subtitle: const Text('다른 앱을 사용해도 인식 계속 · 알림에서 중지'),
-                    value: _backgroundEnabled,
-                    onChanged: _busy ||
-                            _developerMode ||
-                            _backgroundBusy ||
-                            _pipEntering
-                        ? null
-                        : (value) => _setBackground(value)),
-                SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('백그라운드에서 PiP 표시'),
-                    subtitle: const Text('끄면 작은 창 없이 인식합니다'),
-                    value: _pipEnabled,
-                    onChanged:
-                        _backgroundBusy || _pipEntering ? null : _setPip),
-                ElevatedButton.icon(
-                    icon: const Icon(Icons.picture_in_picture_alt),
-                    label: const Text('백그라운드 실행'),
-                    onPressed: _busy ||
-                            _developerMode ||
-                            _pipEntering ||
-                            _backgroundBusy
-                        ? null
-                        : _runBackground),
-                const Text(
-                    '백그라운드 인식이 켜져 있으면 PiP 창을 닫아도 촬영을 계속합니다. '
-                    '작은 창에는 단어·신뢰도·처리 FPS가 표시됩니다. '
-                    '단어만 모으며 기능을 자동 실행하지 않습니다. 앱에서 입력을 가져와 확인하세요.',
-                    style: TextStyle(color: muted, fontSize: 12)),
-                if (_pipError != null)
-                  Text(_pipError!, style: const TextStyle(color: danger)),
-                TextButton(
-                    onPressed: _busy || _backgroundBusy ? null : _takeBackgroundInput,
-                    child: const Text('백그라운드 입력 가져오기')),
-                TextButton(
-                    onPressed: _notificationSettings,
-                    child: const Text('앱 알림 설정')),
-              ],
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('개발자 모드'),
-                subtitle: const Text('단어 버튼으로 LLM 입력을 테스트합니다'),
-                value: _developerMode,
-                onChanged: _busy || _backgroundBusy
-                    ? null
-                    : (value) async {
-                        if (_backgroundEnabled &&
-                            !await _setBackground(false)) {
-                          return;
-                        }
-                        if (!mounted) return;
-                        setState(() {
-                          _developerMode = value;
-                          _developerGloss.clear();
-                          _gate.reset();
-                          _translation = '';
-                          _status = value ? '테스트할 단어를 눌러 주세요.' : '인식 대기 중';
-                        });
-                      },
-              ),
-              if (_developerMode) ...[
-                const Text('버튼은 LLM 입력으로 전달합니다. 확인 없이 기능을 실행하지 않습니다.'),
-                const SizedBox(height: 12),
-                Wrap(spacing: 8, runSpacing: 8, children: [
-                  ...shortcutCommands.keys.map((word) => OutlinedButton(
-                        onPressed: _busy || !_foreground
-                            ? null
-                            : () => _testWord(word),
-                        child: Text('테스트: $word'),
-                      )),
-                ]),
-                gap,
-                GlossTestPanel(
-                    text: _developerGloss.join(' '),
-                    disabled: _busy || !_foreground,
-                    onWord: (word) => setState(() => _developerGloss.add(word)),
-                    onUndo: () => setState(() => _developerGloss.removeLast()),
-                    onClear: () => setState(() => _developerGloss.clear()),
-                    onSubmit: () => _openAssistant(
-                        fromDrawer: false,
-                        initialGloss: _developerGloss.join(' '),
-                        developerMode: true)),
-              ],
-              gap,
-              if (!_assistantOpen && !_developerMode)
-                SizedBox(
-                    height: 300,
-                    child:
-                        HandCamera(key: _cameraKey, onPrediction: _prediction)),
-              gap,
-              Text(_translation.isEmpty ? '수어를 보여 주세요.' : '번역: $_translation',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 22)),
-              const SizedBox(height: 12),
-              Text(_status, textAlign: TextAlign.center),
-              if (!_developerMode) ...[
-                ElevatedButton(key: const Key('recognition-submit'),
-                  onPressed: _busy || _foregroundGloss.isEmpty ? null : () => _openAssistant(
-                    fromDrawer: false, initialGloss: _foregroundGloss.join(' ')),
-                  child: const Text('입력 완료 · LLM 비서로 보내기')),
-                TextButton(onPressed: _busy || _foregroundGloss.isEmpty ? null : () => setState(() {
-                  _foregroundGloss.clear(); _translation = ''; _gate.reset(requireRelease: true);
-                }), child: const Text('입력 비우기')),
-              ],
-              if (_busy) const Center(child: Text('처리 중…')),
-              if (!_developerMode && !_gate.armed && !_busy) ...[
-                gap,
-                PrimaryButton('다시 인식하기', _restartRecognition)
-              ],
-              gap,
-              Panel(
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                    Text('인식한 단어는 LLM 입력으로 전달합니다.'),
-                    SizedBox(height: 12),
-                    Text('백그라운드 입력도 앱에서 해석·확인한 뒤 실행합니다.'),
-                    SizedBox(height: 12),
-                    Text('엄마·아프다만으로 전화하지 않습니다.'),
-                    SizedBox(height: 12),
-                    Text('위(방향) / 아래 → 확인 후 미디어 볼륨 조절'),
-                  ])),
-              gap,
-              OutlinedButton(
-                  onPressed: _busy ? null : _registerCompany,
-                  child: const Text('회사 위치 등록 / 변경')),
-              gap,
-              const Text(
-                  '입력 완료 후 내용을 확인하세요. 그렇다로 승인하고 틀리다로 다시 입력할 수 있습니다.'),
-              const SizedBox(height: 12),
-              const Text(
-                  '백그라운드 입력은 앱 프로세스가 유지되는 동안만 보관됩니다.',
-                  style: TextStyle(color: muted)),
+  Widget build(BuildContext context) => Stack(children: [
+        Offstage(offstage: _pipLayout, child: _fullView(context)),
+        if (_pipLayout)
+          Scaffold(
+              backgroundColor: Colors.black,
+              body: SizedBox.expand(
+                  child:
+                      HandCamera(key: _cameraKey, onPrediction: _prediction))),
+      ]);
+
+  Widget _fullView(BuildContext context) => Scaffold(
+        appBar: AppBar(
+            leading: Navigator.of(context).canPop() ? const BackButton() : null,
+            title: const Text('수어 대화'),
+            actions: [
+              Builder(
+                  builder: (context) => IconButton(
+                      tooltip: '메뉴',
+                      icon: const Icon(Icons.menu),
+                      onPressed: () => Scaffold.of(context).openEndDrawer())),
             ]),
-          ))),
-        );
+        endDrawer: Drawer(
+            child: SafeArea(
+                child: ListView(children: [
+          ListTile(
+              leading: const CircleAvatar(child: Icon(Icons.person)),
+              title: const Text('서연님'),
+              subtitle: const Text('데모 사용자'),
+              trailing: IconButton(
+                  tooltip: '메뉴 닫기',
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(context))),
+          const Divider(),
+          ListTile(
+              leading: const Icon(Icons.apps),
+              title: const Text('단축키 실행'),
+              onTap: () => Navigator.pop(context)),
+          ListTile(
+              leading: const Icon(Icons.chat),
+              title: const Text('LLM 비서'),
+              onTap: _busy ? null : () => _openAssistant()),
+          const Divider(),
+          _menuItem(
+              Icons.person_outline,
+              '프로필 설정',
+              () => _menuMessage(
+                  '프로필 설정', '서연님\nSignBridge 데모 사용자\n현재 데모 계정으로 사용 중입니다.')),
+          _menuItem(Icons.info_outline, '서비스 안내',
+              () => _openMenuPage(const GuidePage())),
+          _menuItem(
+              Icons.campaign_outlined,
+              '공지사항',
+              () => _menuMessage('공지사항',
+                  'SignBridge에 오신 것을 환영합니다.\n단축키 실행과 LLM 비서를 이용할 수 있습니다.')),
+          _menuItem(Icons.people_outline, '커뮤니티',
+              () => _menuMessage('커뮤니티', '사용 경험을 나누는 커뮤니티를 준비 중입니다.')),
+          _menuItem(Icons.support_agent, '고객센터',
+              () => _menuMessage('고객센터', '메뉴의 서비스 안내에서 동작 가이드를 확인할 수 있습니다.')),
+          const Divider(),
+          _menuItem(
+              Icons.logout,
+              '로그아웃',
+              () => _menuMessage(
+                  '데모 계정', '현재 데모 계정으로 사용 중이며 별도의 로그인은 필요하지 않습니다.')),
+        ]))),
+        body: SafeArea(
+            child: Center(
+                child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 640),
+          child: Column(children: [
+            if (!_assistantOpen && !_developerMode && !_pipLayout)
+              SizedBox(
+                  height: (MediaQuery.of(context).size.height * .28)
+                      .clamp(160.0, 260.0)
+                      .toDouble(),
+                  child:
+                      HandCamera(key: _cameraKey, onPrediction: _prediction)),
+            Expanded(
+                child: ListView(
+                    controller: _assistantScroll,
+                    padding: const EdgeInsets.all(20),
+                    children: [
+                  AssistantPage(
+                      key: _assistantKey,
+                      embedded: true,
+                      developerMode: _developerMode,
+                      request: widget.assistantRequest,
+                      executeAction: widget.assistantExecuteAction,
+                      onBusyChanged: _assistantBusyChanged),
+                  gap,
+                  const Badge('수어 입력 → LLM 해석 → 확인 후 실행',
+                      icon: Icons.translate),
+                  Text(_status, key: const Key('recognition-status')),
+                  if (!kIsWeb &&
+                      defaultTargetPlatform == TargetPlatform.android) ...[
+                    const SizedBox(height: 12),
+                    SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('백그라운드 인식'),
+                        subtitle: const Text('다른 앱을 사용해도 인식 계속 · 알림에서 중지'),
+                        value: _backgroundEnabled,
+                        onChanged: _busy ||
+                                _developerMode ||
+                                _backgroundBusy ||
+                                _pipEntering
+                            ? null
+                            : (value) => _setBackground(value)),
+                    SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('백그라운드에서 PiP 표시'),
+                        subtitle: const Text('끄면 작은 창 없이 인식합니다'),
+                        value: _pipEnabled,
+                        onChanged:
+                            _backgroundBusy || _pipEntering ? null : _setPip),
+                    ElevatedButton.icon(
+                        icon: const Icon(Icons.picture_in_picture_alt),
+                        label: const Text('백그라운드 실행'),
+                        onPressed: _busy ||
+                                _developerMode ||
+                                _pipEntering ||
+                                _backgroundBusy
+                            ? null
+                            : _runBackground),
+                    const Text(
+                        '백그라운드 인식이 켜져 있으면 PiP 창을 닫아도 촬영을 계속합니다. '
+                        '작은 창에는 단어·신뢰도·처리 FPS가 표시됩니다. '
+                        '단어만 모으며 기능을 자동 실행하지 않습니다. 앱에서 입력을 가져와 확인하세요.',
+                        style: TextStyle(color: muted, fontSize: 12)),
+                    if (_pipError != null)
+                      Text(_pipError!, style: const TextStyle(color: danger)),
+                    TextButton(
+                        onPressed: _busy || _backgroundBusy
+                            ? null
+                            : _takeBackgroundInput,
+                        child: const Text('백그라운드 입력 가져오기')),
+                    TextButton(
+                        onPressed: _notificationSettings,
+                        child: const Text('앱 알림 설정')),
+                  ],
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('개발자 모드'),
+                    subtitle: const Text('단어 버튼으로 LLM 입력을 테스트합니다'),
+                    value: _developerMode,
+                    onChanged: _busy || _backgroundBusy
+                        ? null
+                        : (value) async {
+                            if (_backgroundEnabled &&
+                                !await _setBackground(false)) {
+                              return;
+                            }
+                            if (!mounted) return;
+                            setState(() {
+                              _developerMode = value;
+                              _gate.reset();
+                              _status = value ? '테스트할 단어를 눌러 주세요.' : '인식 대기 중';
+                            });
+                          },
+                  ),
+                  if (_busy) const Center(child: Text('처리 중…')),
+                  gap,
+                  Panel(
+                      child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: const [
+                        Text('인식한 단어는 LLM 입력으로 전달합니다.'),
+                        SizedBox(height: 12),
+                        Text('백그라운드 입력도 앱에서 해석·확인한 뒤 실행합니다.'),
+                        SizedBox(height: 12),
+                        Text('엄마·아프다만으로 전화하지 않습니다.'),
+                        SizedBox(height: 12),
+                        Text('위(방향) / 아래 → 확인 후 미디어 볼륨 조절'),
+                      ])),
+                  gap,
+                  OutlinedButton(
+                      onPressed: _busy ? null : _registerCompany,
+                      child: const Text('회사 위치 등록 / 변경')),
+                  gap,
+                  const Text(
+                      '그렇다로 전송하고, LLM 응답 확인 후 다시 그렇다로 승인합니다. 아니다/틀리다는 요청 취소입니다.'),
+                  const SizedBox(height: 12),
+                  const Text('백그라운드 입력은 앱 프로세스가 유지되는 동안만 보관됩니다.',
+                      style: TextStyle(color: muted)),
+                ])),
+          ]),
+        ))),
+      );
 }
 
 class _CompanyDialog extends StatefulWidget {
