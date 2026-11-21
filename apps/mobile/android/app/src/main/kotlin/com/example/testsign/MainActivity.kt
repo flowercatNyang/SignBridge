@@ -191,6 +191,22 @@ class MainActivity: FlutterActivity() {
         }
         flutterEngine.platformViewsController.registry.registerViewFactory(
             "signbridge/hand-camera", HandCameraView.Factory(this, flutterEngine.dartExecutor.binaryMessenger))
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "signbridge/assistant-settings")
+            .setMethodCallHandler { call, result ->
+                try {
+                    when (call.method) {
+                        "loadAssistantConnection" -> result.success(AssistantConnectionStore(this).load())
+                        "saveAssistantConnection" -> {
+                            AssistantConnectionStore(this).save(call.argument<String>("baseUrl") ?: "",
+                                call.argument<String>("accessToken") ?: "")
+                            result.success(null)
+                        }
+                        else -> result.notImplemented()
+                    }
+                } catch (error: Exception) {
+                    result.error("assistant_connection", "서버 연결 설정을 처리하지 못했습니다. 다시 저장해 주세요.", null)
+                }
+            }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "signbridge/actions")
             .setMethodCallHandler { call, result -> perform(call, result) }
     }

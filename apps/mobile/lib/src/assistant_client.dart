@@ -11,6 +11,8 @@ typedef AssistantRequester = Future<AssistantReply> Function({
   required List<Map<String, String>> history,
 });
 
+typedef AssistantActionExecutor = Future<String> Function(AssistantAction action);
+
 String defaultAssistantUrl() {
   const configured = String.fromEnvironment('ASSISTANT_BASE_URL');
   if (configured.isNotEmpty) return configured;
