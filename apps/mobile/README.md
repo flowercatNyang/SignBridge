@@ -20,7 +20,7 @@ LLM/숫자 입력 카메라는 동일 라벨이 85% 이상으로 3회 연속 관
 
 ## 개발 및 검증
 
-저장소 루트에서 먼저 `cd apps/mobile`을 실행하세요. Python 모델과 특징의 기준 소스는 루트 `modules/`입니다. 앱의 모델 변환·fixture 생성 도구도 이 소스를 참조합니다. 전체 연결은 [통합 안내](../../docs/INTEGRATION.md)를 참고하세요.
+저장소 루트에서 먼저 `cd apps/mobile`을 실행하세요. Python 모델과 특징의 기준 소스는 루트 `modules/`입니다. 앱의 fixture 생성 도구도 이 소스를 참조합니다. 전체 연결은 [통합 안내](../../docs/INTEGRATION.md)를 참고하세요.
 
 Flutter 2.8 / Dart 2.15를 사용합니다.
 
@@ -41,6 +41,6 @@ Android는 Gradle 6.7 / Android Gradle Plugin 4.1에 맞춰 JDK 11로 빌드합�
 
 APK: `build/app/outputs/flutter-apk/app-debug.apk`.
 
-모델과 영상 처리는 `lib/src/hand_camera/`, `android/app/src/main/java/com/example/testsign/`, `web/hand_camera.js`, `web/sign_worker.js`에서 처리합니다. 모델 설정은 `assets/models/sign_model.json`, 사전은 `assets/data/core_ksl_word_dictionary.json`에 있습니다. `tools/export_sign_model.py`는 ONNX 변환과 PyTorch 결과 비교를 수행합니다.
+모델과 영상 처리는 `lib/src/hand_camera/`, `android/app/src/main/java/com/example/testsign/`, `web/hand_camera.js`, `web/sign_worker.js`에서 처리합니다. 모델 설정은 `assets/models/sign_model.json`, 사전은 `assets/data/core_ksl_word_dictionary.json`에 있습니다.
 
 연동 참고: [네이버맵 URL Scheme](https://guide.ncloud-docs.com/docs/en/maps-url-scheme), [Android 전화 Intent](https://developer.android.com/reference/android/content/Intent#ACTION_CALL), [Android 볼륨 제어](https://developer.android.com/reference/android/media/AudioManager).

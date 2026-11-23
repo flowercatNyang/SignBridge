@@ -5,31 +5,23 @@
 ## 작업 위치
 
 - Python 모델·특징의 기준 소스: `modules/`
-- 데이터 준비: `scripts/data/`
-- 학습·평가: `scripts/training/`, `scripts/evaluation/`
-- 웹캠 데모: `apps/webcam/`
+- 전처리·학습·평가: `notebooks/`
+- 독립 데이터 변환 도구: `scripts/data/`
 - Flutter 앱과 플랫폼별 추론: `apps/mobile/`
-- 앱 내부 도구·테스트·디자인 자료는 기존 상대 경로를 유지합니다.
+- 앱 내부 도구·테스트는 기존 상대 경로를 유지합니다.
 
-앱에 복제되어 있던 Python `assets/modules/`와 웹캠 스크립트는 제거했습니다. 모델 변환과 fixture 생성 도구는 루트 `modules/`를 참조합니다. 제거 전 모델·특징·어휘 코드가 루트와 같은 것을 확인했으며 원본은 `SexyInwon` 이력에 남아 있습니다.
+앱에 복제되어 있던 Python `assets/modules/`와 웹캠 스크립트는 제거했습니다. fixture 생성 도구는 루트 `modules/`를 참조합니다. 제거 전 모델·특징·어휘 코드가 루트와 같은 것을 확인했으며 원본은 `SexyInwon` 이력에 남아 있습니다.
 
-## 모델 연결
+## 학습 PC에서 빌드 PC로 모델 전달하기
 
-- Python 체크포인트: `models/sign_language_five_words.pth`
-- 앱 실행 모델: `apps/mobile/assets/models/sign_language_five_words.onnx`
-- 앱 설정: `apps/mobile/assets/models/sign_model.json`
-- 라벨: `apps/mobile/assets/data/core_label_map.json`
-- 입력: float32 `[1, 30, 452]`
-- 출력 순서: 아프다, 위, 아래, 회사, 엄마
+현재 13단어 모델을 전달할 때는 아래 파일들을 함께 커밋하고 빌드 담당자가 받을 브랜치에 push하세요.
 
-배포 체크포인트는 앱 브랜치에서 가져왔으며 로컬 `models/five_words_loso/sign_language_five_words.pth`와 SHA-256이 같습니다. 배포 체크포인트와 ONNX는 Git에 포함하고 원본 영상·학습 배열·중간 가중치는 제외합니다. 앱에 남아 있는 이전 `sign_language_gru.*`는 현재 pubspec에 등록되어 있지 않은 이전 자료입니다.
+- apps/mobile/assets/models/sign_language_assistant_demo_325.onnx 및 같은 이름의 검증 보고서 JSON
+- apps/mobile/assets/models/sign_model.json (모델 경로와 입력 설정)
+- apps/mobile/assets/data/core_label_map.json 및 core_ksl_word_dictionary.json (라벨 순서와 단어)
+- apps/mobile/test/fixtures/sign_inference.json (검증 데이터)
 
-학습 후 배포 모델을 갱신할 때 저장소 루트에서 실행합니다. 변환은 앱 모델·라벨·검증 fixture를 갱신하므로 함께 검토하고 커밋하세요.
-
-```bash
-python -m pip install onnx==1.19.1 onnxruntime==1.20.1
-python apps/mobile/tools/export_sign_model.py
-```
+친구는 해당 커밋을 pull한 뒤 앱을 빌드합니다. 학습 데이터와 PyTorch 체크포인트는 학습 PC에 보관합니다. 앱 모델 입력은 [1, 30, 452], 출력은 13개 클래스 점수입니다.
 
 기본 Python 의존성은 먼저 루트 `requirements.txt`로 설치합니다. `.pth` 자체를 Flutter가 실행하지 않습니다. Android와 Web은 ONNX를 사용하고 iOS 네이티브 기능은 아직 미구현입니다.
 
@@ -57,7 +49,7 @@ Android는 기존 Gradle 6.7 / AGP 4.1 설정과 JDK 11을 사용합니다. 빌�
 
 브라우저 통합 검증 도구 `apps/mobile/tools/check_sign_browser.cjs`는 앱의 `.model-tools/browser/` 아래 Playwright와 설치된 Chrome, Flutter web 빌드가 필요합니다. ONNX/MediaPipe 웹 런타임은 현재 외부 CDN을 사용합니다.
 
-Python 웹캠 신뢰도/합의 기준과 Flutter 자동 실행 기준은 원래 구현이 다르며 이번 병합에서 바꾸지 않았습니다. 실제 카메라 인식률, 통화·지도·볼륨 동작은 기기에서 확인해야 합니다.
+실제 카메라 인식률, 통화·지도·볼륨 동작은 기기에서 확인해야 합니다.
 
 ### 이번 통합에서 실행한 검증
 

@@ -34,7 +34,7 @@ Android 동작 근거: [정확한 알람](https://developer.android.com/develop/
 
 ## 임시 학습 단어 13개
 
-기존 5개 모델/NPY는 보존했습니다. `SIGNBRIDGE_VOCABULARY=assistant_demo`일 때만 별도의 데이터와 클래스 목록을 사용합니다. 이전 `assistant23` 값도 임시 목록을 가리키는 호환 별칭으로 유지하지만, 새 출력 폴더는 `processed_assistant_demo`입니다. 과거 23개 라벨로 만든 데이터와 섞지 않습니다.
+기본 어휘는 13개이며 현재 전처리 결과는 data/processed_assistant_demo_325/에 저장합니다.
 
 | 사전 ID | 단어 |
 |---|---|
@@ -56,9 +56,9 @@ Android 동작 근거: [정확한 알람](https://developer.android.com/develop/
 
 `위(내장)`는 WORD2100, `위(방향)`는 사전의 상부 WORD2576입니다. 두 동작은 별도 클래스로 학습합니다. 영상 파일은 WORD ID로 구분하는 것을 권장하며 `수어자ID_위(내장).mp4`, `수어자ID_위(방향).mp4` 별칭도 지원합니다. 새 임시 목록에서는 `수어자ID_위.mp4`처럼 모호한 파일명을 거부합니다. 과거 5개 설정에서는 이 이름을 WORD2100으로 매핑했으므로 실제 방향 동작을 촬영했다면 파일명과 라벨을 수정하고 다시 전처리해야 합니다. 기존 모델의 잘못 섞인 라벨은 표시명만 바꿔서 고칠 수 없습니다.
 
-볼륨 경로는 `위(방향)`/`아래` → LLM의 `adjust_volume` → 사용자 확인 → Android 미디어 볼륨 한 단계 조절입니다. 장기 위는 볼륨 명령에서 제외합니다. 기존 배포 모델의 WORD2100 출력도 위(내장)으로 표시하며, 방향 위 인식에는 13개 모델 학습·배포가 필요합니다. 데이터 준비 전에는 개발자 버튼으로 위(방향)/아래를 시험할 수 있습니다.
+볼륨 경로는 `위(방향)`/`아래` → LLM의 `adjust_volume` → 사용자 확인 → Android 미디어 볼륨 한 단계 조절입니다. 장기 위는 볼륨 명령에서 제외합니다. 현재 앱은 두 클래스를 별도로 표시합니다.
 
-임시 모델은 숫자 8만 인식할 수 있으므로 `1305`, `1205`, `0800` 전체를 수어만으로 입력할 수 없습니다. 날짜·시간 화면에는 **0~9 수동 키패드**를 개발자 모드와 관계없이 유지했습니다. 학습 제외된 숫자는 키패드로 보완합니다. 새 13개 모델을 배포하기 전에는 기존 5개 단어만 카메라에서 인식합니다.
+임시 모델은 숫자 8만 인식할 수 있으므로 `1305`, `1205`, `0800` 전체를 수어만으로 입력할 수 없습니다. 날짜·시간 화면에는 **0~9 수동 키패드**를 개발자 모드와 관계없이 유지했습니다. 학습 제외된 숫자는 키패드로 보완합니다.
 
 ### 1. 전문가 데이터 준비
 
@@ -76,31 +76,7 @@ Android 동작 근거: [정확한 알람](https://developer.android.com/develop/
 
 ### 3. 전처리 → 학습 → 평가 → 앱 배포
 
-아래는 프로젝트 루트에서 실행할 PowerShell 예시입니다. 데이터 준비 전에는 실행하지 마세요. Python 의존성은 루트 requirements.txt를 사용하고, ONNX 내보내기는 스크립트 상단의 추가 의존성도 필요합니다.
-
-```powershell
-python -m pip install -r requirements.txt
-python -m pip install onnx==1.19.1 onnxruntime==1.20.1
-
-$env:SIGNBRIDGE_VOCABULARY = 'assistant_demo'
-
-python scripts/data/prepare_assistant_data.py --source-data D:/SignBridge/expert --raw-mov D:/SignBridge/team
-
-python scripts/training/train_pipeline.py --held-out-signer signerC --validation-signer signerB --output-dir models/assistant_demo_loso
-
-python scripts/evaluation/evaluate_model.py --checkpoint models/assistant_demo_loso/final.pth --output reports/assistant_demo_loso/evaluation.json
-
-python apps/mobile/tools/export_sign_model.py --checkpoint models/assistant_demo_loso/final.pth --target apps/mobile/assets/models/sign_language_assistant_demo.onnx
-```
-
-`signerA/B/C`는 실제 파일명에 쓰인 ID로 변경합니다. 새 데이터는 `data/processed_assistant_demo`에 만들어지며, 새 모델의 메타데이터와 라벨 맵도 함께 배포됩니다. 내보내기는 학습이 끝나고 평가 결과를 확인한 뒤 실행하세요. 앱을 다시 빌드해야 새 모델이 포함됩니다.
-
-기존 5개 모델로 되돌리려면:
-
-```powershell
-Remove-Item Env:SIGNBRIDGE_VOCABULARY
-python apps/mobile/tools/export_sign_model.py
-```
+[전처리](../notebooks/Data_Preprocessing.ipynb) → [학습](../notebooks/GRU_Model_Training.ipynb) → [평가](../notebooks/Model_Evaluation.ipynb) 순서로 실행합니다. 평가는 `reports/assistant_demo_325_loso/evaluation.json`에 저장됩니다. 새 가중치를 앱에 반영하려면 별도 ONNX 변환과 검증이 필요합니다. 현재 모델의 빌드용 파일은 [배포 안내](INTEGRATION.md)를 참고하세요.
 
 새 단어 인식은 **동일 단어가 신뢰도 85% 이상으로 3회 연속 관측**되어야 추가합니다. 숫자마다 손을 0.8초 이상 내린 뒤 다음 숫자를 표현합니다. `0800`의 마지막 0도 따로 표현해야 합니다. 확인 단계로 넘어갈 때도 손을 내린 후 새 확인 동작을 해야 합니다. 이 값은 인식 정확도를 보장하지 않으며 실제 촬영과 실기기에서 검증해야 합니다.
 
