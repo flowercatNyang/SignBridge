@@ -49,8 +49,9 @@ class AppContractTest(unittest.TestCase):
         self.assertEqual(report["class_order"], [words[key] for key in sorted(labels, key=labels.get)])
         self.assertEqual(report["classes"], len(labels))
         self.assertEqual(hashlib.sha256(model.read_bytes()).hexdigest(), report["onnx_sha256"])
-        checkpoint = PROJECT_ROOT / report.get("source_checkpoint", "models/sign_language_five_words.pth")
-        self.assertEqual(hashlib.sha256(checkpoint.read_bytes()).hexdigest(), report["source_sha256"])
+        checkpoint = PROJECT_ROOT / report["source_checkpoint"]
+        if checkpoint.is_file():  # Training weights are local to the training PC.
+            self.assertEqual(hashlib.sha256(checkpoint.read_bytes()).hexdigest(), report["source_sha256"])
 
     def test_landmark_fixtures_match_shared_extractor(self):
         for case in read_json(APP / "test/fixtures/sign_features.json"):

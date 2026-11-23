@@ -82,7 +82,7 @@ class AssistantAction {
       final schedule = date == null ? repeat : '$date · 한 번 · 기기 현지 시간';
       return '알람 $hour:$minute\n$schedule${label.isEmpty ? '' : '\n이름: $label'}';
     }
-    return '수신 연락처: ${arguments['recipient']}\n문자 내용: ${arguments['body']}';
+    return '받는 사람　${arguments['recipient']}\n보낼 문자　${arguments['body']}';
   }
 }
 

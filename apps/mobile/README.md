@@ -16,11 +16,11 @@ LLM/숫자 입력 카메라는 동일 라벨이 85% 이상으로 3회 연속 관
 
 엄마에게 전화하려면 연락처와 전화 권한을 허용해야 합니다. 번호가 없거나 여러 개이면 오류를 표시합니다. Android 일반 앱은 긴급번호에 직접 발신할 수 없으므로 119는 전화 앱에서 통화 버튼을 눌러야 합니다. 웹에서는 119 및 네이버맵 연결을 요청할 수 있고 연락처 조회와 시스템 볼륨 변경은 Android에서 지원합니다. iOS용 네이티브 동작은 구현되어 있지 않습니다.
 
-현재 모델은 `assets/models/sign_language_assistant_demo.onnx`이며 13개 클래스입니다. 기존 5단어 ONNX는 보존했습니다. 클래스 순서와 별칭은 라벨 JSON과 `sign_model.json`을 따릅니다. 입력은 30프레임 × 452개 특징(기본 특징·속도·가속도·손 감지 마스크)입니다. 테스트 수어자 1명 39개에서 Top-1 69.23%이며 방향 위·아래가 각각 0/3입니다. [실행 결과](../../reports/assistant_demo_20261104/RUN_SUMMARY.md)를 확인하세요. 실시간 카메라·PiP·알람 및 실제 스마트폰 제어는 별도 검증이 필요합니다. 새 모델을 휴대전화에 반영하려면 앱을 다시 빌드해야 합니다.
+현재 앱은 325개 팀 영상으로 학습한 13단어 모델 `assets/models/sign_language_assistant_demo_325.onnx`를 사용합니다. 입력은 30프레임 × 452개 특징이며 클래스 순서와 표시명은 라벨 JSON과 `sign_model.json`을 따릅니다. [평가 결과](../../reports/assistant_demo_325_loso/evaluation.json)를 확인할 수 있습니다.
 
 ## 개발 및 검증
 
-저장소 루트에서 먼저 `cd apps/mobile`을 실행하세요. Python 모델과 특징의 기준 소스는 루트 `modules/`입니다. 앱의 모델 변환·fixture 생성 도구도 이 소스를 참조합니다. 전체 연결은 [통합 안내](../../docs/INTEGRATION.md)를 참고하세요.
+저장소 루트에서 먼저 `cd apps/mobile`을 실행하세요. Python 모델과 특징의 기준 소스는 루트 `modules/`입니다. 앱의 fixture 생성 도구도 이 소스를 참조합니다. 전체 연결은 [통합 안내](../../docs/INTEGRATION.md)를 참고하세요.
 
 Flutter 2.8 / Dart 2.15를 사용합니다.
 
@@ -41,6 +41,6 @@ Android는 Gradle 6.7 / Android Gradle Plugin 4.1에 맞춰 JDK 11로 빌드합�
 
 APK: `build/app/outputs/flutter-apk/app-debug.apk`.
 
-모델과 영상 처리는 `lib/src/hand_camera/`, `android/app/src/main/java/com/example/testsign/`, `web/hand_camera.js`, `web/sign_worker.js`에서 처리합니다. 모델 설정은 `assets/models/sign_model.json`, 사전은 `assets/data/core_ksl_word_dictionary.json`에 있습니다. `tools/export_sign_model.py`는 ONNX 변환과 PyTorch 결과 비교를 수행합니다.
+모델과 영상 처리는 `lib/src/hand_camera/`, `android/app/src/main/java/com/example/testsign/`, `web/hand_camera.js`, `web/sign_worker.js`에서 처리합니다. 모델 설정은 `assets/models/sign_model.json`, 사전은 `assets/data/core_ksl_word_dictionary.json`에 있습니다.
 
 연동 참고: [네이버맵 URL Scheme](https://guide.ncloud-docs.com/docs/en/maps-url-scheme), [Android 전화 Intent](https://developer.android.com/reference/android/content/Intent#ACTION_CALL), [Android 볼륨 제어](https://developer.android.com/reference/android/media/AudioManager).

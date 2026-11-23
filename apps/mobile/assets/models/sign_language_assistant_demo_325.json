@@ -1,7 +1,7 @@
 {
-  "source_checkpoint": "models/assistant_demo_loso_20261104_stable/final.pth",
-  "source_sha256": "066d72412cc23221baa59db62898066cea007ac9a8a079e9dd9d984e984b5025",
-  "onnx_sha256": "00e55b0ec082fe08009a94e3969e9c9b7b168125cef643768fe8553b1147ded1",
+  "source_checkpoint": "models/assistant_demo_325_loso/final.pth",
+  "source_sha256": "93b1637b0cf3620d53bd18fe1f9f69864d0c5fcf5155a3c273b4cf5b379e7743",
+  "onnx_sha256": "723a41ad2e00511bf80fa0e59b1f9e9a355f1100bf67603c2504b8c3453038f5",
   "input_shape": [
     1,
     30,
@@ -33,5 +33,5 @@
     "input_dim": 452
   },
   "validation_cases": 16,
-  "max_absolute_logit_error": 5.245208740234375e-06
+  "max_absolute_logit_error": 3.0994415283203125e-06
 }

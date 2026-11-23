@@ -34,7 +34,7 @@ Android 동작 근거: [정확한 알람](https://developer.android.com/develop/
 
 ## 임시 학습 단어 13개
 
-기존 5개 모델/NPY는 보존했습니다. `SIGNBRIDGE_VOCABULARY=assistant_demo`일 때만 별도의 데이터와 클래스 목록을 사용합니다. 이전 `assistant23` 값도 임시 목록을 가리키는 호환 별칭으로 유지하지만, 새 출력 폴더는 `processed_assistant_demo`입니다. 과거 23개 라벨로 만든 데이터와 섞지 않습니다.
+기본 어휘는 13개이며 현재 전처리 결과는 data/processed_assistant_demo_325/에 저장합니다.
 
 | 사전 ID | 단어 |
 |---|---|
@@ -56,11 +56,9 @@ Android 동작 근거: [정확한 알람](https://developer.android.com/develop/
 
 `위(내장)`는 WORD2100, `위(방향)`는 사전의 상부 WORD2576입니다. 두 동작은 별도 클래스로 학습합니다. 현재 `prepare_assistant_data.py`의 기본 파일명 형식은 **시연자_단어뜻_방향**입니다. 이 형식에서는 `시연자_위_정면.mp4`를 방향 WORD2576으로, `시연자_위(내장)_정면.mp4`를 장기 WORD2100으로, `시연자_팔(8)_정면.mp4`를 숫자 WORD2639로 구분합니다. WORD ID 표기도 지원합니다.
 
-기존 `시연자_방향_단어` 영상은 `--filename-format signer-angle-word`를 명시해야 합니다. 이 예전 형식의 모호한 ‘위’는 거부합니다. 과거 5개 설정에서는 ‘위’를 WORD2100으로 매핑했으므로 실제 방향 동작을 촬영했다면 파일명과 라벨을 수정하고 다시 전처리해야 합니다. 기존 모델의 잘못 섞인 라벨은 표시명만 바꿔서 고칠 수 없습니다.
+볼륨 경로는 `위(방향)`/`아래` → LLM의 `adjust_volume` → 사용자 확인 → Android 미디어 볼륨 한 단계 조절입니다. 장기 위는 볼륨 명령에서 제외합니다. 현재 앱은 두 클래스를 별도로 표시합니다.
 
-볼륨 경로는 `위(방향)`/`아래` → LLM의 `adjust_volume` → 사용자 확인 → Android 미디어 볼륨 한 단계 조절입니다. 장기 위는 볼륨 명령에서 제외합니다. 2026-11-04에 13개 모델 학습·평가·ONNX 변환을 실행했습니다. 테스트 영상에서는 방향 위·아래가 각각 0/3으로 인식 성능이 부족합니다. [실행 결과](../reports/assistant_demo_20261104/RUN_SUMMARY.md)를 확인하고 실제 기기에서 검증하세요. 개발자 버튼으로 실행 흐름 자체를 별도로 시험할 수 있습니다.
-
-임시 모델은 숫자 8만 인식할 수 있으므로 `1305`, `1205`, `0800` 전체를 수어만으로 입력할 수 없습니다. 날짜·시간 화면에는 **0~9 수동 키패드**를 개발자 모드와 관계없이 유지했습니다. 학습 제외된 숫자는 키패드로 보완합니다. 현재 앱 자산은 13개 모델로 갱신했으며 이미 설치된 앱에는 재빌드·설치가 필요합니다.
+임시 모델은 숫자 8만 인식할 수 있으므로 `1305`, `1205`, `0800` 전체를 수어만으로 입력할 수 없습니다. 날짜·시간 화면에는 **0~9 수동 키패드**를 개발자 모드와 관계없이 유지했습니다. 학습 제외된 숫자는 키패드로 보완합니다.
 
 ### 1. 전문가 데이터 준비
 
@@ -74,42 +72,13 @@ Android 동작 근거: [정확한 알람](https://developer.android.com/develop/
 
 ### 2. 팀원 영상 준비
 
-파일명은 `수어자ID_WORD2639_정면.mp4`, `수어자ID_그렇다_왼.mov`처럼 **시연자_단어뜻_방향**으로 작성합니다. 각 파일은 한 단어/숫자 한 자리 동작입니다. 날짜 전체를 한 영상 클래스로 만들지 않습니다.
+325개 영상용 노트북은 시연자_방향_단어 형식을 읽습니다. 예시는 `수어자ID_정면_WORD2639.mp4`입니다.
 
 시작 최소 수량은 클래스당 총 3개입니다. LOSO 테스트 수어자, 검증 수어자, 학습 수어자가 서로 달라야 하므로 **최소 세 명이 모든 클래스에 참여**해야 합니다. 가능하면 수어자마다 여러 회 촬영하세요. 회차는 `signerA_take01_WORD2639.mp4`처럼 중간 토큰으로 구분할 수 있습니다. 학습 배치는 전문가:팀원을 약 1:1로 oversampling합니다.
 
 ### 3. 전처리 → 학습 → 평가 → 앱 배포
 
-아래는 프로젝트 루트에서 실행할 PowerShell 예시입니다. 데이터 준비 전에는 실행하지 마세요. Python 의존성은 루트 requirements.txt를 사용하고, ONNX 내보내기는 스크립트 상단의 추가 의존성도 필요합니다.
-
-```powershell
-python -m pip install -r requirements.txt
-python -m pip install onnx==1.16.2 onnxruntime==1.20.1
-
-$env:SIGNBRIDGE_VOCABULARY = 'assistant_demo'
-
-# 기존 73개 NPY에 빠진 클래스가 있고 로컬 전문가 JSON이 준비된 경우 한 번 실행
-python scripts/data/extend_expert_data.py --output-root data/expert_assistant_demo
-
-python scripts/data/prepare_assistant_data.py --source-data data/expert_assistant_demo --raw-mov "$env:USERPROFILE/Downloads/영상_데이터"
-
-python scripts/training/train_pipeline.py --held-out-signer signerC --validation-signer signerB --output-dir models/assistant_demo_loso --disable-cudnn
-
-python scripts/evaluation/evaluate_model.py --checkpoint models/assistant_demo_loso/final.pth --output reports/assistant_demo_loso/evaluation.json
-
-python apps/mobile/tools/export_sign_model.py --checkpoint models/assistant_demo_loso/final.pth --target apps/mobile/assets/models/sign_language_assistant_demo.onnx
-```
-
-`signerA/B/C`는 실제 파일명에 쓰인 ID로 변경합니다. 새 데이터는 `data/processed_assistant_demo`에 만들어지며, 새 모델의 메타데이터와 라벨 맵도 함께 배포됩니다. 내보내기는 학습이 끝나고 평가 결과를 확인한 뒤 실행하세요. 앱을 다시 빌드해야 새 모델이 포함됩니다.
-
-이 PC의 설치된 Torch 개발 버전에서는 기본 학습 경로가 저장 후 비정상 종료하는 문제가 재현됐습니다. `--disable-cudnn`으로 GPU 학습을 정상 종료한 결과를 사용했습니다. 정확한 원인과 진단 기록은 실행 보고서에 남겼으며, 다른 환경에서 이 옵션이 반드시 필요한 것은 아닙니다.
-
-기존 5개 모델로 되돌리려면:
-
-```powershell
-Remove-Item Env:SIGNBRIDGE_VOCABULARY
-python apps/mobile/tools/export_sign_model.py
-```
+[전처리](../notebooks/Data_Preprocessing.ipynb) → [학습](../notebooks/GRU_Model_Training.ipynb) → [평가](../notebooks/Model_Evaluation.ipynb) 순서로 실행합니다. 평가는 `reports/assistant_demo_325_loso/evaluation.json`에 저장됩니다. 새 가중치를 앱에 반영하려면 별도 ONNX 변환과 검증이 필요합니다. 현재 모델의 빌드용 파일은 [배포 안내](INTEGRATION.md)를 참고하세요.
 
 새 단어 인식은 **동일 단어가 신뢰도 85% 이상으로 3회 연속 관측**되어야 추가합니다. 숫자마다 손을 0.8초 이상 내린 뒤 다음 숫자를 표현합니다. `0800`의 마지막 0도 따로 표현해야 합니다. 확인 단계로 넘어갈 때도 손을 내린 후 새 확인 동작을 해야 합니다. 이 값은 인식 정확도를 보장하지 않으며 실제 촬영과 실기기에서 검증해야 합니다.
 

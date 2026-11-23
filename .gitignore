@@ -5,7 +5,6 @@ __pycache__/
 
 # PyTorch models
 *.pth
-!/models/sign_language_five_words.pth
 
 # Virtual environment
 venv/

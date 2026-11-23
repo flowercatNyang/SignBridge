@@ -2,13 +2,14 @@
   "held_out_signer": "박세준",
   "validation_signer": "김정우",
   "seed": 42,
+  "cudnn_enabled": false,
   "counts": {
-    "stage0": 702,
+    "stage0": 780,
     "expert_train": 585,
-    "adapt_train": 702,
+    "adapt_train": 780,
     "validation": 65,
-    "team_validation": 39,
-    "held_out": 39,
+    "team_validation": 65,
+    "held_out": 65,
     "external": 0
   },
   "training_signers": [

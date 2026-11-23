@@ -11,7 +11,7 @@ from modules.preprocessing import parse_team_filename
 from modules.vocabulary import LABEL_MAP, WORDS
 
 
-class DataPipelineTest(unittest.TestCase):
+class TrainingPipelineTest(unittest.TestCase):
     def test_word_then_camera_angle_layout(self):
         with patch.dict(WORDS, {"WORD2576": "상부", "WORD2639": "팔"}):
             layout = "signer-word-angle"
@@ -31,12 +31,7 @@ class DataPipelineTest(unittest.TestCase):
                 parse_team_filename(Path("사람_위.mp4"))
 
     def test_frontal_word_and_angle_word_are_distinct(self):
-        self.assertEqual(parse_team_filename(Path("사람_WORD2100.MOV")), ("사람", "정면", "WORD2100"))
-        if "WORD2576" not in WORDS:
-            self.assertEqual(parse_team_filename(Path("사람_위.MOV")), ("사람", "정면", "WORD2100"))
-        else:
-            with self.assertRaises(ValueError):
-                parse_team_filename(Path("사람_위.MOV"))
+        self.assertEqual(parse_team_filename(Path("사람_위(내장).MOV")), ("사람", "정면", "WORD2100"))
         self.assertEqual(parse_team_filename(Path("사람_위_아래.mov")), ("사람", "위", "WORD2577"))
         filename = unicodedata.normalize("NFD", "사람_아래_엄마.mp4")
         self.assertEqual(parse_team_filename(Path(filename)), ("사람", "아래", "WORD1528"))
@@ -60,7 +55,7 @@ class DataPipelineTest(unittest.TestCase):
         self.assertEqual(len(splits["team_validation"]), 3 * len(LABEL_MAP))
         self.assertEqual(len(splits["adapt_train"]), 54 * len(LABEL_MAP))
 
-    def test_default_output_matches_active_vocabulary(self):
+    def test_default_output_matches_vocabulary(self):
         model = SignLanguageModel().eval()
         with torch.no_grad():
             self.assertEqual(tuple(model(torch.zeros(2, 30, 452)).shape), (2, len(WORDS)))

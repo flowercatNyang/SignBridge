@@ -107,8 +107,9 @@ def parse_team_filename(video_path, filename_format="signer-angle-word"):
         raise ValueError(f"Expected signer_[angle_]word: {video_path}")
     if not signer or not angle:
         raise ValueError(f"Empty signer or angle: {video_path}")
-    if filename_format == "signer-word-angle":
-        word = {"위": "WORD2576", "팔(8)": "WORD2639"}.get(word, word)
+    if filename_format == "signer-word-angle" or (len(parts) == 3 and "WORD2576" in WORDS):
+        word = {"위": "WORD2576", "위(장기)": "WORD2100", "팔(8)": "WORD2639",
+                "(8)": "WORD2639"}.get(word, word)
     if word == "위" and "WORD2576" in WORDS:
         raise ValueError(f"Ambiguous 위: use WORD2100/위(내장) or WORD2576/위(방향): {video_path}")
     matches = [word] if word in WORDS else [key for key, name in WORDS.items()

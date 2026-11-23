@@ -1,4 +1,4 @@
-"""Select a training vocabulary without relabeling existing five-word assets."""
+"""Select a training vocabulary for model training and export."""
 
 import os
 
@@ -13,7 +13,7 @@ WORDS = {
 # EXPECTED_PER_CLASS = {"expert": 50, "team": 9}
 EXPECTED_PER_CLASS = {"expert": 50, "team": 15}
 
-PROFILE = os.getenv("SIGNBRIDGE_VOCABULARY", "five")
+PROFILE = os.getenv("SIGNBRIDGE_VOCABULARY", "assistant_demo")
 if PROFILE in {"assistant_demo", "assistant23"}:
     WORDS = {
         **WORDS,
@@ -45,7 +45,7 @@ elif PROFILE != "five":
 
 LABEL_MAP = {key: index for index, key in enumerate(WORDS)}
 NUM_CLASSES = len(WORDS)
-PROCESSED_NAME = "processed_five" if PROFILE == "five" else "processed_assistant_demo"
+PROCESSED_NAME = "processed_five" if PROFILE == "five" else "processed_assistant_demo_325"
 
 # Keep dictionary labels canonical in checkpoints; disambiguate UI/LLM input.
 DISPLAY_LABELS = {
