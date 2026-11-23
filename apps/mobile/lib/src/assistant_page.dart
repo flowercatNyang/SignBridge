@@ -341,7 +341,7 @@ class _AssistantPageState extends State<AssistantPage>
         if (_reply != null) Panel(child: Column(
           crossAxisAlignment: CrossAxisAlignment.start, children: [
             if (_reply!.mode == 'mock') const Badge('모의 응답 · 실제 LLM 번역 아님', color: muted),
-            const Text('한국어 번역 후보', style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text('입력한 뜻', style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             Text(_reply!.translation),
             if (_reply!.question != null) ...[
@@ -351,6 +351,8 @@ class _AssistantPageState extends State<AssistantPage>
             if (_reply!.action != null) ...[
               gap,
               Text(_reply!.action!.summary),
+              if (_reply!.action!.name == 'compose_message')
+                const Text('이 내용으로 문자 앱을 열까요?'),
               ElevatedButton(key: const Key('assistant-execute'),
                 onPressed: _busy ? null : () => _execute(), child: const Text('확인 후 실행')),
             ],
