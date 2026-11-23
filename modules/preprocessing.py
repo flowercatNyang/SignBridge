@@ -97,6 +97,10 @@ def parse_team_filename(video_path):
         angle = "정면"
     elif len(parts) == 3:
         signer, angle, word = parts
+        if "WORD2576" in WORDS:
+            # Team recordings distinguish direction 위 from the organ 위(장기).
+            word = {"위": "WORD2576", "위(장기)": "WORD2100", "팔(8)": "WORD2639",
+                    "(8)": "WORD2639"}.get(word, word)
     else:
         raise ValueError(f"Expected signer_[angle_]word: {video_path}")
     if not signer or not angle:

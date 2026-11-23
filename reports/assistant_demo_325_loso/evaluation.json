@@ -1,0 +1,945 @@
+{
+  "checkpoint": "D:\\Exp\\Project\\models\\assistant_demo_325_loso\\final.pth",
+  "word_dictionary": {
+    "WORD1152": "아프다",
+    "WORD2100": "위",
+    "WORD2577": "아래",
+    "WORD1592": "회사",
+    "WORD1528": "엄마",
+    "WORD1157": "나",
+    "WORD0948": "가깝다",
+    "WORD0932": "매일매일",
+    "WORD1273": "일어나다",
+    "WORD2639": "팔",
+    "WORD2268": "그렇다",
+    "WORD1359": "틀리다",
+    "WORD2576": "상부"
+  },
+  "label_map": {
+    "WORD1152": 0,
+    "WORD2100": 1,
+    "WORD2577": 2,
+    "WORD1592": 3,
+    "WORD1528": 4,
+    "WORD1157": 5,
+    "WORD0948": 6,
+    "WORD0932": 7,
+    "WORD1273": 8,
+    "WORD2639": 9,
+    "WORD2268": 10,
+    "WORD1359": 11,
+    "WORD2576": 12
+  },
+  "held_out_signer": "박세준",
+  "held_out_team": {
+    "samples": 65,
+    "top1_accuracy": 0.6923076923076923,
+    "top3_accuracy": 0.8923076923076924,
+    "top5_accuracy": 0.9384615384615385,
+    "macro_f1": 0.6658785658785659,
+    "confusion_matrix": [
+      [
+        4,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        5,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        2,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        4,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        5,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        4,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        4,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0,
+        1
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        2,
+        1,
+        2
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        5,
+        0
+      ],
+      [
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        1,
+        2,
+        0,
+        0,
+        0
+      ]
+    ],
+    "per_class": {
+      "0": {
+        "samples": 5,
+        "correct": 4
+      },
+      "1": {
+        "samples": 5,
+        "correct": 5
+      },
+      "2": {
+        "samples": 5,
+        "correct": 1
+      },
+      "3": {
+        "samples": 5,
+        "correct": 4
+      },
+      "4": {
+        "samples": 5,
+        "correct": 4
+      },
+      "5": {
+        "samples": 5,
+        "correct": 5
+      },
+      "6": {
+        "samples": 5,
+        "correct": 4
+      },
+      "7": {
+        "samples": 5,
+        "correct": 4
+      },
+      "8": {
+        "samples": 5,
+        "correct": 3
+      },
+      "9": {
+        "samples": 5,
+        "correct": 4
+      },
+      "10": {
+        "samples": 5,
+        "correct": 2
+      },
+      "11": {
+        "samples": 5,
+        "correct": 5
+      },
+      "12": {
+        "samples": 5,
+        "correct": 0
+      }
+    },
+    "predictions": [
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD1152\\박세준\\140fc95935e9.npz",
+        "true_label": 0,
+        "predicted_label": 0,
+        "top3": [
+          0,
+          10,
+          2
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD1152\\박세준\\1c0081ae61da.npz",
+        "true_label": 0,
+        "predicted_label": 0,
+        "top3": [
+          0,
+          10,
+          2
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD1152\\박세준\\3eef9a62f568.npz",
+        "true_label": 0,
+        "predicted_label": 0,
+        "top3": [
+          0,
+          10,
+          2
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD1152\\박세준\\4c0b62d2c952.npz",
+        "true_label": 0,
+        "predicted_label": 5,
+        "top3": [
+          5,
+          8,
+          0
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD1152\\박세준\\8ad7fdd4992c.npz",
+        "true_label": 0,
+        "predicted_label": 0,
+        "top3": [
+          0,
+          2,
+          10
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD2100\\박세준\\0372bda60ce0.npz",
+        "true_label": 1,
+        "predicted_label": 1,
+        "top3": [
+          1,
+          12,
+          6
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD2100\\박세준\\6932dfec5991.npz",
+        "true_label": 1,
+        "predicted_label": 1,
+        "top3": [
+          1,
+          12,
+          6
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD2100\\박세준\\74ad352fd63a.npz",
+        "true_label": 1,
+        "predicted_label": 1,
+        "top3": [
+          1,
+          6,
+          12
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD2100\\박세준\\ca43b0885568.npz",
+        "true_label": 1,
+        "predicted_label": 1,
+        "top3": [
+          1,
+          12,
+          9
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD2100\\박세준\\eac68fbee6bb.npz",
+        "true_label": 1,
+        "predicted_label": 1,
+        "top3": [
+          1,
+          12,
+          6
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD2577\\박세준\\21ec73368218.npz",
+        "true_label": 2,
+        "predicted_label": 6,
+        "top3": [
+          6,
+          7,
+          3
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD2577\\박세준\\55531568b79d.npz",
+        "true_label": 2,
+        "predicted_label": 0,
+        "top3": [
+          0,
+          10,
+          2
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD2577\\박세준\\8c231bf87a5c.npz",
+        "true_label": 2,
+        "predicted_label": 7,
+        "top3": [
+          7,
+          10,
+          4
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD2577\\박세준\\962da9ffa181.npz",
+        "true_label": 2,
+        "predicted_label": 2,
+        "top3": [
+          2,
+          11,
+          5
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD2577\\박세준\\964daea95a82.npz",
+        "true_label": 2,
+        "predicted_label": 0,
+        "top3": [
+          0,
+          2,
+          10
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD1592\\박세준\\0038342f4dce.npz",
+        "true_label": 3,
+        "predicted_label": 3,
+        "top3": [
+          3,
+          11,
+          7
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD1592\\박세준\\054d35263726.npz",
+        "true_label": 3,
+        "predicted_label": 3,
+        "top3": [
+          3,
+          11,
+          6
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD1592\\박세준\\1f2eec9970b1.npz",
+        "true_label": 3,
+        "predicted_label": 7,
+        "top3": [
+          7,
+          3,
+          6
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD1592\\박세준\\bd5e12d1e8f8.npz",
+        "true_label": 3,
+        "predicted_label": 3,
+        "top3": [
+          3,
+          11,
+          10
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD1592\\박세준\\da0d10024633.npz",
+        "true_label": 3,
+        "predicted_label": 3,
+        "top3": [
+          3,
+          11,
+          10
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD1528\\박세준\\444b874e217d.npz",
+        "true_label": 4,
+        "predicted_label": 4,
+        "top3": [
+          4,
+          12,
+          10
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD1528\\박세준\\773c044e75a4.npz",
+        "true_label": 4,
+        "predicted_label": 4,
+        "top3": [
+          4,
+          10,
+          12
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD1528\\박세준\\9424baad1cd3.npz",
+        "true_label": 4,
+        "predicted_label": 4,
+        "top3": [
+          4,
+          12,
+          10
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD1528\\박세준\\f1a8c61f2d0c.npz",
+        "true_label": 4,
+        "predicted_label": 10,
+        "top3": [
+          10,
+          4,
+          0
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD1528\\박세준\\fceb91238752.npz",
+        "true_label": 4,
+        "predicted_label": 4,
+        "top3": [
+          4,
+          10,
+          12
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD1157\\박세준\\29cc2ad39457.npz",
+        "true_label": 5,
+        "predicted_label": 5,
+        "top3": [
+          5,
+          12,
+          9
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD1157\\박세준\\3d685b8f1ae2.npz",
+        "true_label": 5,
+        "predicted_label": 5,
+        "top3": [
+          5,
+          3,
+          0
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD1157\\박세준\\9023acb7cc88.npz",
+        "true_label": 5,
+        "predicted_label": 5,
+        "top3": [
+          5,
+          3,
+          8
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD1157\\박세준\\9d658fefacc8.npz",
+        "true_label": 5,
+        "predicted_label": 5,
+        "top3": [
+          5,
+          8,
+          0
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD1157\\박세준\\a877f5c9c36d.npz",
+        "true_label": 5,
+        "predicted_label": 5,
+        "top3": [
+          5,
+          8,
+          3
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD0948\\박세준\\0c3392a43d57.npz",
+        "true_label": 6,
+        "predicted_label": 6,
+        "top3": [
+          6,
+          7,
+          3
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD0948\\박세준\\0ff180d82566.npz",
+        "true_label": 6,
+        "predicted_label": 6,
+        "top3": [
+          6,
+          9,
+          7
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD0948\\박세준\\2b578dade4e2.npz",
+        "true_label": 6,
+        "predicted_label": 6,
+        "top3": [
+          6,
+          3,
+          12
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD0948\\박세준\\770a651cfb15.npz",
+        "true_label": 6,
+        "predicted_label": 3,
+        "top3": [
+          3,
+          10,
+          11
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD0948\\박세준\\9e203cdb5d5f.npz",
+        "true_label": 6,
+        "predicted_label": 6,
+        "top3": [
+          6,
+          7,
+          9
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD0932\\박세준\\0bc381166396.npz",
+        "true_label": 7,
+        "predicted_label": 7,
+        "top3": [
+          7,
+          0,
+          3
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD0932\\박세준\\137041f1d772.npz",
+        "true_label": 7,
+        "predicted_label": 7,
+        "top3": [
+          7,
+          3,
+          10
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD0932\\박세준\\aa1758fcb591.npz",
+        "true_label": 7,
+        "predicted_label": 6,
+        "top3": [
+          6,
+          7,
+          11
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD0932\\박세준\\bd48c93bb53d.npz",
+        "true_label": 7,
+        "predicted_label": 7,
+        "top3": [
+          7,
+          3,
+          6
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD0932\\박세준\\fa91f6f260cc.npz",
+        "true_label": 7,
+        "predicted_label": 7,
+        "top3": [
+          7,
+          10,
+          3
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD1273\\박세준\\5d0f31d779e0.npz",
+        "true_label": 8,
+        "predicted_label": 2,
+        "top3": [
+          2,
+          12,
+          8
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD1273\\박세준\\6306b703eb0c.npz",
+        "true_label": 8,
+        "predicted_label": 1,
+        "top3": [
+          1,
+          8,
+          2
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD1273\\박세준\\c19965761cb6.npz",
+        "true_label": 8,
+        "predicted_label": 8,
+        "top3": [
+          8,
+          5,
+          2
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD1273\\박세준\\c741c37b2cdf.npz",
+        "true_label": 8,
+        "predicted_label": 8,
+        "top3": [
+          8,
+          1,
+          2
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD1273\\박세준\\f33868d77526.npz",
+        "true_label": 8,
+        "predicted_label": 8,
+        "top3": [
+          8,
+          5,
+          2
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD2639\\박세준\\307d0f921cd6.npz",
+        "true_label": 9,
+        "predicted_label": 9,
+        "top3": [
+          9,
+          10,
+          0
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD2639\\박세준\\68e127a2f93a.npz",
+        "true_label": 9,
+        "predicted_label": 9,
+        "top3": [
+          9,
+          4,
+          6
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD2639\\박세준\\9f46bf791b31.npz",
+        "true_label": 9,
+        "predicted_label": 9,
+        "top3": [
+          9,
+          4,
+          6
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD2639\\박세준\\d4eb8c249cc8.npz",
+        "true_label": 9,
+        "predicted_label": 12,
+        "top3": [
+          12,
+          9,
+          11
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD2639\\박세준\\d5dfa1279c55.npz",
+        "true_label": 9,
+        "predicted_label": 9,
+        "top3": [
+          9,
+          6,
+          4
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD2268\\박세준\\15f5b840900f.npz",
+        "true_label": 10,
+        "predicted_label": 12,
+        "top3": [
+          12,
+          4,
+          1
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD2268\\박세준\\166a7ea217a5.npz",
+        "true_label": 10,
+        "predicted_label": 11,
+        "top3": [
+          11,
+          9,
+          12
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD2268\\박세준\\3e6de0af135c.npz",
+        "true_label": 10,
+        "predicted_label": 12,
+        "top3": [
+          12,
+          10,
+          11
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD2268\\박세준\\4c6911b57838.npz",
+        "true_label": 10,
+        "predicted_label": 10,
+        "top3": [
+          10,
+          0,
+          4
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD2268\\박세준\\627b39431d06.npz",
+        "true_label": 10,
+        "predicted_label": 10,
+        "top3": [
+          10,
+          12,
+          4
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD1359\\박세준\\083606027c33.npz",
+        "true_label": 11,
+        "predicted_label": 11,
+        "top3": [
+          11,
+          12,
+          10
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD1359\\박세준\\611e7ab818b0.npz",
+        "true_label": 11,
+        "predicted_label": 11,
+        "top3": [
+          11,
+          12,
+          1
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD1359\\박세준\\7aac40894f1d.npz",
+        "true_label": 11,
+        "predicted_label": 11,
+        "top3": [
+          11,
+          12,
+          1
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD1359\\박세준\\c3d3a450081c.npz",
+        "true_label": 11,
+        "predicted_label": 11,
+        "top3": [
+          11,
+          12,
+          1
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD1359\\박세준\\ee8df49335cb.npz",
+        "true_label": 11,
+        "predicted_label": 11,
+        "top3": [
+          11,
+          12,
+          9
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD2576\\박세준\\0a37f647eecb.npz",
+        "true_label": 12,
+        "predicted_label": 9,
+        "top3": [
+          9,
+          0,
+          4
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD2576\\박세준\\0e5f9e32633f.npz",
+        "true_label": 12,
+        "predicted_label": 8,
+        "top3": [
+          8,
+          6,
+          12
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD2576\\박세준\\b720c8ac1cc1.npz",
+        "true_label": 12,
+        "predicted_label": 6,
+        "top3": [
+          6,
+          9,
+          12
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD2576\\박세준\\c35b869c9cb7.npz",
+        "true_label": 12,
+        "predicted_label": 9,
+        "top3": [
+          9,
+          12,
+          4
+        ]
+      },
+      {
+        "source_sequence": "D:\\Exp\\Project\\data\\processed_assistant_demo_325\\sequences\\team\\WORD2576\\박세준\\f3e47420df8d.npz",
+        "true_label": 12,
+        "predicted_label": 0,
+        "top3": [
+          0,
+          8,
+          4
+        ]
+      }
+    ]
+  },
+  "external_fixed_test": null
+}
