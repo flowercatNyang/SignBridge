@@ -1,4 +1,5 @@
 import unittest
+from itertools import permutations
 
 from backend.assistant import AssistantError, Settings, interpret
 
@@ -58,3 +59,19 @@ class GuidedConversationTest(unittest.TestCase):
         self.start("엄마")
         with self.assertRaises(AssistantError):
             self.turn("틀리다", "rejection")
+
+    def test_wake_alarm_in_every_word_order(self):
+        for words, days in [(("일어나다", "8"), []),
+                            (("매일매일", "일어나다", "8"), list(range(1, 8)))]:
+            for order in permutations(words):
+                with self.subTest(order=order):
+                    reply = self.start(" ".join(order))
+                    self.assertEqual(reply["action"], {"name": "set_alarm", "arguments": {
+                        "hour": 8, "minute": 0, "label": "기상", "days": days}})
+                    self.assertEqual(reply["step"], "done_on_decline")
+                    self.assertIsNone(self.answer(False)["action"])
+
+    def test_wake_alarm_requires_complete_unambiguous_labels(self):
+        for text in ("매일매일 8", "일어나다", "일어나다 8 8", "엄마 일어나다 8"):
+            with self.subTest(text=text):
+                self.assertIsNone(self.start(text)["action"])

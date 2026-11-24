@@ -68,7 +68,15 @@ def guided_plan(data):
         up = text != "아래"
         return proposal("done_on_decline", "미디어 볼륨을 한 단계 " + ("올릴까요?" if up else "내릴까요?"),
                         "adjust_volume", direction="up" if up else "down")
-    words = set(text.split())
+    tokens = text.split()
+    alarm_words = sorted(tokens)
+    if alarm_words in (["8", "일어나다"], ["8", "매일매일", "일어나다"]):
+        daily = "매일매일" in tokens
+        schedule = "매일 오전 8시" if daily else "오전 8시에 한 번"
+        return proposal("done_on_decline", f"{schedule} 기상 알람을 설정할까요?",
+                        "set_alarm", hour=8, minute=0, label="기상",
+                        days=list(range(1, 8)) if daily else [])
+    words = set(tokens)
     if "아프다" in words and words <= {"아프다", "엄마", "나", "위(내장)", "배", "속", "복부"}:
         if "엄마" in words:
             if "나" in words:
