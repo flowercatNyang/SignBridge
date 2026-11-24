@@ -4,12 +4,16 @@ import 'dart:convert';
 import 'dart:html' as html;
 
 Future<Map<String, dynamic>> postAssistantJson(
-    Uri uri, String token, Map<String, dynamic> payload) {
+    Uri uri, String token, Map<String, dynamic> payload) => _send(uri, token, payload);
+
+Future<Map<String, dynamic>> getAssistantHealth(Uri uri) => _send(uri, '', null);
+
+Future<Map<String, dynamic>> _send(Uri uri, String token, Map<String, dynamic>? payload) {
   final done = Completer<Map<String, dynamic>>();
   final request = html.HttpRequest();
-  request.open('POST', uri.toString());
-  request.timeout = 60000;
-  request.setRequestHeader('Content-Type', 'application/json');
+  request.open(payload == null ? 'GET' : 'POST', uri.toString());
+  request.timeout = payload == null ? 5000 : 60000;
+  if (payload != null) request.setRequestHeader('Content-Type', 'application/json');
   if (token.isNotEmpty) request.setRequestHeader('Authorization', 'Bearer $token');
   request.onLoad.listen((_) {
     if (done.isCompleted) return;
@@ -28,6 +32,6 @@ Future<Map<String, dynamic>> postAssistantJson(
   request.onError.listen((_) => fail());
   request.onTimeout.listen((_) => fail());
   request.onAbort.listen((_) => fail());
-  request.send(jsonEncode(payload));
+  request.send(payload == null ? null : jsonEncode(payload));
   return done.future;
 }

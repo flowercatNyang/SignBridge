@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'assistant_transport.dart';
 
 typedef AssistantRequester = Future<AssistantReply> Function({
@@ -12,14 +11,6 @@ typedef AssistantRequester = Future<AssistantReply> Function({
 });
 
 typedef AssistantActionExecutor = Future<String> Function(AssistantAction action);
-
-String defaultAssistantUrl() {
-  const configured = String.fromEnvironment('ASSISTANT_BASE_URL');
-  if (configured.isNotEmpty) return configured;
-  return !kIsWeb && defaultTargetPlatform == TargetPlatform.android
-      ? 'http://10.0.2.2:8000'
-      : 'http://127.0.0.1:8000';
-}
 
 class AssistantAction {
   AssistantAction(this.name, Map<String, dynamic> arguments)
