@@ -9,13 +9,11 @@ class ProjectLayoutTest(unittest.TestCase):
         for name in ("hand_landmarker.task", "pose_landmarker_lite.task"):
             self.assertTrue((MEDIAPIPE_DIR / name).is_file())
         for relative in (
-            "apps/webcam/handsign_translate.py",
-            "scripts/data/prepare_dataset.py",
+            "notebooks/Data_Preprocessing.ipynb",
             "scripts/data/preprocess_videos.py",
             "scripts/data/migrate_expert_npy.py",
-            "scripts/data/audit_dataset.py",
-            "scripts/training/train_pipeline.py",
-            "scripts/evaluation/evaluate_model.py",
+            "notebooks/GRU_Model_Training.ipynb",
+            "notebooks/Model_Evaluation.ipynb",
         ):
             self.assertTrue((PROJECT_ROOT / relative).is_file(), relative)
 

@@ -1,8 +1,6 @@
 # SignBridge
 
-MediaPipe 관절 특징과 경량 1D-CNN·GRU를 이용한 한국수어 단어 인식 프로젝트입니다. 현재 앱 모델은 확인 수어와 숫자 8을 포함한 **13개 클래스**입니다. 기존 5단어 모델도 비교·복구용으로 보존합니다.
-
-앱에는 **시간 HHMM → 날짜 MMDD → 수어 확인** 알람 입력을 구현했습니다. 장기 위(WORD2100)와 방향 위/상부(WORD2576)를 구분하며, 방향 위·아래는 확인 후 볼륨을 조절합니다. 2026-11-04에 전문가 650개와 팀원 영상 195개로 학습·평가하고 앱용 ONNX를 갱신했습니다. 테스트 수어자 1명 39개에서 Top-1은 69.23%이며 방향 위·아래에는 오류가 남아 있습니다. [실행 결과](reports/assistant_demo_20261104/RUN_SUMMARY.md)와 [데이터 준비 가이드](docs/ASSISTANT_DIGIT_ALARMS.md)를 참고하세요. 단어 인식만으로 기능을 자동 실행하지 않습니다.
+MediaPipe 관절 특징과 경량 1D-CNN·GRU를 이용한 한국수어 단어 인식 프로젝트입니다. 현재 앱은 팀 영상 325개를 사용해 학습한 13단어 모델을 실행합니다. 위(내장)와 위(방향)를 별도로 인식합니다.
 
 최신 SexyInwon의 홈·로고·백그라운드/PiP 카메라를 `apps/mobile`에 통합했습니다. 백그라운드에서는 단어만 모으며, 앱으로 가져와 해석·확인한 요청만 실행합니다. 통합 내역과 검증 범위는 [브랜치 통합 기록](docs/BRANCH_INTEGRATION.md)을 참고하세요.
 
@@ -11,28 +9,24 @@ MediaPipe 관절 특징과 경량 1D-CNN·GRU를 이용한 한국수어 단어 �
 ```text
 SignBridge/
 ├── apps/
-│   ├── webcam/          # Python 웹캠 실시간 인식 데모
 │   └── mobile/          # Flutter 앱, Android/Web 추론, 앱 테스트
 ├── scripts/
-│   ├── data/            # 데이터 선택, 변환, 영상 전처리, 품질 확인
-│   ├── training/        # 4단계 모델 학습
-│   └── evaluation/      # 독립 촬영자 평가
-├── modules/             # 공용 모델·특징·데이터·게이트·경로 정의
+│   └── data/            # 전문가 NPY 변환 및 영상 처리 CLI
+├── modules/             # 공용 모델·특징·데이터·경로 정의
 ├── assets/mediapipe/     # 손/상체 추출용 .task 모델
 ├── data/                # 원본/전처리 데이터 (Git 제외)
 ├── models/              # 학습된 .pth 가중치
 ├── reports/             # 학습 기록, 데이터 분할, 평가 결과 JSON
 ├── notebooks/           # 전처리·학습·평가 실행용 노트북
 ├── docs/                # 앱 인수인계, 실험 결과, 이전 파이프라인 설명
-├── tools/               # 전달용 ZIP 생성 등 개발 보조 도구
-├── tests/               # 모델·특징·샘플러·실시간 게이트 테스트
+├── tests/               # 모델·특징·샘플러 테스트
 ├── requirements.txt
 └── README.md
 ```
 
 공용 Python 코드는 기존 `modules` 패키지를 유지합니다. 파일 이동은 모델 구조나 입력/출력 라벨을 바꾸지 않습니다. 경로 기준은 `modules/paths.py`로 통일했으며, 기본 데이터·모델·자산 위치는 실행한 터미널 위치와 관계없이 저장소 루트를 기준으로 찾습니다.
 
-## 설치와 웹캠 실행
+## 학습 환경 설치
 
 저장소 루트에서 실행합니다.
 
@@ -41,10 +35,7 @@ python -m venv .venv
 source .venv/bin/activate
 # Windows PowerShell: .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-python apps/webcam/handsign_translate.py
 ```
-
-통합 브랜치에는 앱 ONNX 모델과 대응하는 `models/sign_language_five_words.pth`를 포함합니다. 그 외 학습 가중치와 데이터는 Git에서 제외합니다. `models/sign_language_gru.pth`는 이전 모델이므로 이번 5단어 추론에 사용하지 마세요. 카메라 권한을 허용하고, 종료는 `q`, 인식 초기화는 `ESC`입니다.
 
 ## Flutter 앱 실행
 
@@ -64,47 +55,12 @@ Android 빌드와 기능 설명은 [앱 README](apps/mobile/README.md)를 참고
 
 ## 데이터 → 학습 → 평가
 
-아래 명령은 **기존 5단어 실험 재현용**입니다. 현재 13개 모델의 실행 순서와 명령은 [실행 결과](reports/assistant_demo_20261104/RUN_SUMMARY.md)에 기록했습니다.
+프로젝트 Python 커널로 [전처리](notebooks/Data_Preprocessing.ipynb) → [학습](notebooks/GRU_Model_Training.ipynb) → [평가](notebooks/Model_Evaluation.ipynb) 순서대로 각 노트북의 모든 셀을 실행합니다. 첫 노트북은 전문가 NPY와 다운로드 폴더의 팀 영상 325개를 확인합니다. 클래스당 전문가 50개와 팀 영상 25개로 30프레임 × 452차원 데이터를 준비합니다. 학습 노트북 첫 셀에서 테스트·검증 수어자와 출력 경로를 지정합니다. 평가는 최종 체크포인트와 같은 manifest를 사용합니다.
 
-```bash
-# 1. 기존 전문가 NPY에서 5단어 선택 + 팀 영상 전처리
-python scripts/data/prepare_dataset.py --source-data data/processed --raw-mov ~/Downloads/raw_mov
+전문가 NPY 변환과 도메인별 영상 처리만 실행할 때는 `scripts/data/`의 독립 CLI를 사용할 수 있습니다.
 
-# 2. 전처리 결과 확인
-python scripts/data/audit_dataset.py
-
-# 3. 촬영자 분리 4단계 학습
-python scripts/training/train_pipeline.py \
-  --held-out-signer 박세준 --validation-signer 김정우 \
-  --batch-size 32 --stage0-epochs 20 --stage1-epochs 40 \
-  --stage2-epochs 15 --stage3-epochs 30 \
-  --output-dir models/five_words_loso \
-  --report-dir reports/five_words_loso \
-  --export-path models/sign_language_five_words.pth
-
-# 4. 학습에서 제외한 촬영자 평가
-python scripts/evaluation/evaluate_model.py \
-  --checkpoint models/sign_language_five_words.pth \
-  --output reports/five_words_loso/evaluation.json
-```
-
-전문가 배열만 변환하려면 `scripts/data/migrate_expert_npy.py`, 기존 도메인 폴더 구조의 영상을 처리하려면 `scripts/data/preprocess_videos.py`를 사용합니다. 모든 실행 스크립트는 `--help`를 지원합니다. 노트북은 `notebooks/`에서 같은 스크립트를 호출합니다.
-
-특징은 `[30, 452]`이며 150 관절 특징 + 150 속도 + 150 가속도 + 2 손 검출 mask로 구성됩니다. 라벨은 `modules/vocabulary.py`에서 0=아프다, 1=위, 2=아래, 3=회사, 4=엄마로 정의합니다.
-
-전문가 자료는 클래스당 50개, 팀 영상은 클래스당 15개입니다. `촬영자_각도_단어`와 `촬영자_단어` 파일명을 처리하며 각도 생략은 정면입니다. 학습/검증/테스트 촬영자를 분리하고, 적응 학습 배치는 전문가와 팀 자료를 1:1로 구성합니다. Stage 0은 마스킹 복원, Stage 1은 전문가 분류, Stage 2는 encoder 고정 적응, Stage 3은 전체 미세조정입니다.
-
-## 실시간 동작과 결과
-
-현재 신뢰도 기준은 70%, 최근 5회 중 3회 합의입니다. `NO_SIGN/TRANSITION`은 모델 출력 클래스가 아닌 게이트 상태이며, 손 미검출이 연속 5프레임이면 버퍼를 초기화합니다. 손이 보이는 비수어 동작을 모두 거부하는 기능은 아닙니다.
-
-독립 촬영자 1명의 저장 영상 15개에서 Top-1 60%, Top-3 100%였습니다. 위/아래 혼동이 남아 있고 실제 웹캠 정확도는 측정하지 않았습니다. 자세한 과정은 [실험 결과](docs/RUN_RESULTS.md), 앱 연결 방법은 [인수인계 문서](docs/HANDOFF.md)를 참고하세요. 이전 73단어 설명은 [보존 문서](docs/legacy_pipeline.md)에 남겨 두었습니다.
-
-## 검증과 전달 자료
+## 검증
 
 ```bash
 python -m unittest discover -s tests -v
-python tools/build_handoff.py --repo . --output dist/SignBridge_handoff.zip
 ```
-
-전달용 ZIP은 추론 코드·새 모델·MediaPipe 자산·설명을 포함하며 원본 영상과 학습 데이터를 포함하지 않습니다. 원본 `data/`, 배포 체크포인트 외의 `*.pth`, 가상환경, 캐시, `dist/`는 Git에서 제외됩니다.

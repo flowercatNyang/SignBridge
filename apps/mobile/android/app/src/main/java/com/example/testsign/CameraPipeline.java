@@ -58,7 +58,42 @@ final class CameraPipeline {
     boolean hasListeners() { return !listeners.isEmpty(); }
     boolean ready() { return camera != null; }
     boolean running() { return camera != null || starting; }
-    void flip() { front = !front; stop(); start(); }
+    void flip() {
+        if (starting) return;
+        if (camera == null) {
+            front = !front;
+            start();
+            return;
+        }
+        try {
+            if (findCamera(!front) < 0) {
+                android.widget.Toast.makeText(activity, "전환할 카메라가 없습니다.", android.widget.Toast.LENGTH_SHORT).show();
+                return;
+            }
+        } catch (RuntimeException e) {
+            android.util.Log.w("HandCamera", "Cannot enumerate cameras", e);
+            return;
+        }
+        starting = true;
+        int token = ++generation;
+        front = !front;
+        releaseCamera();
+        status("카메라 전환 중…");
+        worker.execute(() -> {
+            translator.reset();
+            main.post(() -> { if (valid(token)) openCamera(token); });
+        });
+    }
+
+    private int findCamera(boolean useFront) {
+        int facing = useFront ? Camera.CameraInfo.CAMERA_FACING_FRONT : Camera.CameraInfo.CAMERA_FACING_BACK;
+        Camera.CameraInfo info = new Camera.CameraInfo();
+        for (int id = 0; id < Camera.getNumberOfCameras(); id++) {
+            Camera.getCameraInfo(id, info);
+            if (info.facing == facing) return id;
+        }
+        return -1;
+    }
     private void status(String message) {
         lastStatus = message;
         for (Listener listener : new java.util.ArrayList<>(listeners)) listener.status(message);
@@ -110,12 +145,8 @@ final class CameraPipeline {
 
     private void openCamera(int token) {
         try {
-            int selected = -1;
+            int selected = findCamera(front);
             Camera.CameraInfo info = new Camera.CameraInfo();
-            for (int id = 0; id < Camera.getNumberOfCameras(); id++) {
-                Camera.getCameraInfo(id, info);
-                if (info.facing == (front ? Camera.CameraInfo.CAMERA_FACING_FRONT : Camera.CameraInfo.CAMERA_FACING_BACK)) { selected = id; break; }
-            }
             if (selected < 0) throw new IllegalStateException("Requested camera unavailable");
             Camera.getCameraInfo(selected, info);
             final boolean mirror = info.facing == Camera.CameraInfo.CAMERA_FACING_FRONT;
@@ -224,9 +255,7 @@ final class CameraPipeline {
         main.post(() -> { if (valid(token)) { stop(); status(message + "\n" + detail); RecognitionService.cameraFailed(message); } });
     }
 
-    void stop() {
-        generation++;
-        starting = false;
+    private void releaseCamera() {
         lastFrame = 0;
         completedFrames = 0;
         fps = 0;
@@ -242,6 +271,12 @@ final class CameraPipeline {
             }
         }
         if (texture != null) { texture.release(); texture = null; }
+    }
+
+    void stop() {
+        generation++;
+        starting = false;
+        releaseCamera();
         status("수화 번역\n카메라 시작 후 동작을 보여 주세요");
         worker.execute(() -> {
             if (landmarker != null) { landmarker.close(); landmarker = null; }

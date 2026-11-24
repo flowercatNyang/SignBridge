@@ -117,6 +117,8 @@ void main() {
       expect(calls, isEmpty);
     }
     await request();
+    expect(find.text('받는 사람　엄마\n보낼 문자　나 아파'), findsOneWidget);
+    expect(find.text('이 내용으로 문자 앱을 열까요?'), findsOneWidget);
     await tap(find.byKey(const Key('gloss-word-틀리다')));
     expect(find.byKey(const Key('assistant-execute')), findsNothing);
     expect(calls, isEmpty);
@@ -124,6 +126,7 @@ void main() {
     await tap(find.byKey(const Key('gloss-word-그렇다')));
     expect(calls.single.method, 'compose_message');
     expect(jsonDecode(calls.single.arguments['value'] as String)['recipient'], '엄마');
+    expect(jsonDecode(calls.single.arguments['value'] as String)['body'], '나 아파');
     expect(find.byKey(const Key('assistant-execute')), findsNothing);
   }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 

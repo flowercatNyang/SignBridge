@@ -651,7 +651,7 @@ class AssistantPageState extends State<AssistantPage>
                   children: [
                     if (_reply!.mode == 'mock')
                       const Badge('모의 응답 · 실제 LLM 번역 아님', color: muted),
-                    const Text('한국어 번역 후보',
+                    const Text('입력한 뜻',
                         style: TextStyle(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
                     Text(_reply!.translation),
@@ -663,6 +663,8 @@ class AssistantPageState extends State<AssistantPage>
                     if (_reply!.action != null) ...[
                       gap,
                       Text(_reply!.action!.summary),
+                      if (_reply!.action!.name == 'compose_message')
+                        const Text('이 내용으로 문자 앱을 열까요?'),
                       if (!widget.embedded || _developerMode)
                         ElevatedButton(
                             key: const Key('assistant-execute'),

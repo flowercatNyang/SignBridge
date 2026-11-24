@@ -10,8 +10,8 @@ import numpy as np
 import onnxruntime as ort
 import torch
 from modules.data import read_manifest
-from modules.paths import PROJECT_ROOT
-from modules.utils import load_models_and_maps
+from modules.models import SignLanguageModel
+from modules.vocabulary import DISPLAY_LABELS
 
 
 def main():
@@ -25,7 +25,10 @@ def main():
     if not 0 <= args.confidence_threshold <= 1:
         parser.error('--confidence-threshold must be between 0 and 1')
     checkpoint = torch.load(args.checkpoint, map_location='cpu', weights_only=True)
-    model, labels, _, _, _ = load_models_and_maps(str(PROJECT_ROOT), torch.device('cpu'), str(args.checkpoint))
+    model = SignLanguageModel(**checkpoint['model_config']).eval()
+    model.load_state_dict(checkpoint['model_state'])
+    labels = {index: DISPLAY_LABELS.get(key, checkpoint['word_dictionary'][key])
+              for key, index in checkpoint['label_map'].items()}
     rows = [row for row in read_manifest(args.manifest)
             if row.domain == 'team' and row.signer_id == checkpoint['held_out_signer']]
     if not rows:

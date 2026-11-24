@@ -1,6 +1,6 @@
 # Sejun / SexyInwon 통합 기록
 
-이 문서는 2026-11-03 병합 당시 기록입니다. 이후 2026-11-04 영상 전처리·13개 모델 학습·평가·ONNX 갱신은 [실행 결과](../reports/assistant_demo_20261104/RUN_SUMMARY.md)에 따로 기록했습니다.
+이 문서는 2026-11-03 병합 당시 기록입니다. 현재 배포 모델의 결과는 [325개 영상 실험 평가](../reports/assistant_demo_325_loso/evaluation.json)를 참고하세요.
 
 2026-11-03 기준으로 `D:/Exp/tmp`에 SexyInwon을 clone하고, 최신 커밋 `874d9ef`를 `D:/Exp/Project`의 Sejun에 통합했습니다. main 변경과 원격 push는 수행하지 않았습니다.
 
