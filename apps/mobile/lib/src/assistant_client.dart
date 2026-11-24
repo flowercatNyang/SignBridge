@@ -46,6 +46,12 @@ class AssistantAction {
           !_validText(args['body'], 1000)) {
         throw const FormatException('문자 수신자와 내용을 확인해 주세요.');
       }
+    } else if (['emergency', 'company', 'mother'].contains(name)) {
+      if (args.isNotEmpty) throw const FormatException('잘못된 실행 인자입니다.');
+    } else if (name == 'nearby_hospital') {
+      if (args.length != 1 || !['병원', '내과'].contains(args['department'])) {
+        throw const FormatException('병원 검색어를 확인해 주세요.');
+      }
     } else if (name == 'adjust_volume') {
       if (args.length != 1 || !['up', 'down'].contains(args['direction'])) {
         throw const FormatException('볼륨 방향을 확인해 주세요.');
@@ -57,6 +63,10 @@ class AssistantAction {
   }
 
   String get summary {
+    if (name == 'emergency') return '119 발신 화면 열기 · 전화 앱에서 통화 버튼을 눌러 주세요.';
+    if (name == 'company') return '네이버 지도에서 회사 길찾기';
+    if (name == 'mother') return '등록된 엄마 연락처로 전화';
+    if (name == 'nearby_hospital') return '네이버 지도에서 ${arguments["department"]} 검색';
     if (name == 'adjust_volume') {
       return arguments['direction'] == 'up' ? '미디어 볼륨 한 단계 높이기' : '미디어 볼륨 한 단계 낮추기';
     }
@@ -82,14 +92,16 @@ bool _validText(dynamic value, int maximum) => value is String &&
 
 class AssistantReply {
   const AssistantReply({required this.translation, required this.question,
-    required this.action, required this.mode});
+    required this.action, required this.mode, this.step});
   final String translation;
   final String? question;
   final AssistantAction? action;
   final String mode;
+  final String? step;
 
   factory AssistantReply.fromJson(Map<String, dynamic> data) {
-    if (data.length != 4 ||
+    if (data.length != (data.containsKey('step') ? 5 : 4) ||
+        (data.containsKey('step') && !_validText(data['step'], 40)) ||
         !['translation', 'question', 'action', 'mode'].every(data.containsKey) ||
         !_validText(data['translation'], 2000) ||
         !['nvidia', 'mock'].contains(data['mode']) ||
@@ -100,7 +112,7 @@ class AssistantReply {
     return AssistantReply(translation: data['translation'] as String,
         question: data['question'] as String?,
         action: data['action'] == null ? null : AssistantAction.fromJson(data['action']),
-        mode: data['mode'] as String);
+        mode: data['mode'] as String, step: data['step'] as String?);
   }
 }
 
@@ -115,7 +127,7 @@ Future<AssistantReply> requestAssistant({required String baseUrl,
   }
   try {
     final response = await postAssistantJson(uri.resolve('/v1/interpret'),
-        accessToken.trim(), {'text': text, 'input_type': inputType, 'history': history})
+        accessToken.trim(), {'guided': true, 'text': text, 'input_type': inputType, 'history': history})
         .timeout(const Duration(seconds: 60));
     final decoded = jsonDecode(response['body'] as String);
     if (decoded is! Map<String, dynamic>) {

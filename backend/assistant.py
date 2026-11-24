@@ -1,5 +1,7 @@
 """Validate assistant plans and translate recognized input through NVIDIA's API."""
 
+from .guided import STEPS, guided_plan
+
 import json
 import os
 import re
@@ -68,32 +70,39 @@ def text_field(value, name, maximum, empty=False):
 
 
 def validate_request(data):
-    if not isinstance(data, dict) or set(data) - {"text", "input_type", "history"}:
+    if not isinstance(data, dict) or set(data) - {"text", "input_type", "history", "guided"}:
         raise AssistantError("잘못된 요청 형식입니다.")
     text = text_field(data.get("text"), "text", 2000)
     input_type = data.get("input_type", "text")
-    if input_type not in ("text", "gloss", "confirmation"):
+    if input_type not in ("text", "gloss", "confirmation", "rejection"):
         raise AssistantError("input_type은 text, gloss 또는 confirmation이어야 합니다.")
+    guided = data.get("guided", False)
+    if type(guided) is not bool or (input_type == "rejection" and not guided):
+        raise AssistantError("잘못된 대화 모드입니다.")
     history = data.get("history", [])
     if not isinstance(history, list) or len(history) > 12:
         raise AssistantError("대화가 너무 깁니다. 새 요청으로 시작해 주세요.")
     cleaned = []
     for index, turn in enumerate(history):
-        if not isinstance(turn, dict) or set(turn) != {"role", "content"}:
+        if not isinstance(turn, dict) or set(turn) not in ({"role", "content"}, {"role", "content", "step"}):
             raise AssistantError("잘못된 대화 기록입니다.")
         expected = "user" if index % 2 == 0 else "assistant"
         if turn["role"] != expected:
             raise AssistantError("대화 기록은 사용자 입력과 질문이 번갈아야 합니다.")
         cleaned.append({"role": expected, "content": text_field(turn["content"], "history", 2000)})
+        if "step" in turn:
+            if not guided or expected != "assistant" or not isinstance(turn["step"], str) or turn["step"] not in STEPS:
+                raise AssistantError("잘못된 제안 단계입니다.")
+            cleaned[-1]["step"] = turn["step"]
     if len(cleaned) % 2:
         raise AssistantError("마지막 대화 기록은 추가 질문이어야 합니다.")
-    if input_type == "confirmation":
+    if input_type in ("confirmation", "rejection"):
         if not cleaned:
             raise AssistantError("확인할 원래 요청과 질문 기록이 없습니다.")
         source_text, _ = original_request(cleaned)
         if text != source_text:
             raise AssistantError("확인 요청의 원문이 대화 기록과 일치하지 않습니다.")
-    return {"text": text, "input_type": input_type, "history": cleaned}
+    return {"text": text, "input_type": input_type, "history": cleaned, **({"guided": True} if guided else {})}
 
 
 def original_request(history):
@@ -109,6 +118,9 @@ def model_input(data):
     confirmed = data["input_type"] == "confirmation" or (
         data["input_type"] == "text" and bool(data["history"]) and
         data["text"] in {"그렇다", "맞아요", "맞아", "네", "예", "확인"})
+    if data["input_type"] == "rejection":
+        source, source_type = original_request(data["history"])
+        return {"text": source, "input_type": source_type, "rejection": True}
     if confirmed:
         source, source_type = original_request(data["history"])
         return {"text": source, "input_type": source_type, "confirmation": True}
@@ -161,6 +173,12 @@ def validate_plan(data):
                     raise AssistantError("문자 수신자와 내용이 필요합니다.")
                 text_field(args["recipient"], "recipient", 80)
                 text_field(args["body"], "body", 1000)
+            elif name in ("mother", "company", "emergency"):
+                if args:
+                    raise AssistantError("추가 인자가 필요하지 않습니다.")
+            elif name == "nearby_hospital":
+                if set(args) != {"department"} or args["department"] not in ("내과", "병원"):
+                    raise AssistantError("지원하지 않는 병원 검색어입니다.")
             elif name == "adjust_volume":
                 if set(args) != {"direction"} or args["direction"] not in ("up", "down"):
                     raise AssistantError("볼륨 방향은 up 또는 down이어야 합니다.")
@@ -178,6 +196,7 @@ gloss는 한국어 문장의 단어 목록과 같지 않으며 손의 공간 지
 이전 대화가 있으면 현재 입력은 원래 요청에 대한 추가 답변이다. 원래 요청의 대상과 행동을 유지하면서 답변으로 정보를 보완하라.
 사용자가 번역 후보를 '맞아요' 등으로 확인하면 확인된 원래 요청의 translation과 실행 명령을 반환하라.
 이때 '맞아요' 문장 자체를 번역해서 끝내지 마라. 아직 정보가 부족하면 그 정보만 추가 질문하라.
+rejection=true이면 직전 제안만 거절했다. 원문과 이전 대화를 유지하고 거절한 제안을 반복하지 마라. 다른 적절한 제안이 없으면 대화를 마쳐라.
 confirmation=true이면 text는 새 입력이 아니라 원래 요청이며 사용자가 직전 질문에 동의한 것이다.
 이때 대화에서 확인된 답변과 번역 후보를 유지하라. 그렇다라는 단어 자체를 번역하지 마라.
 이미 확인된 번역을 다시 확인하는 질문을 반복하지 말고, 필요한 실행 정보가 없으면 그 정보만 질문하라.
@@ -276,6 +295,11 @@ def decode_completion(raw):
 
 def interpret(data, settings):
     data = validate_request(data)
+    if data.get("guided"):
+        plan = guided_plan(data)
+        if plan is not None:
+            step = plan.pop("step", None)
+            return {**validate_plan(plan), **({"step": step} if step else {}), "mode": settings.mode}
     current_input = model_input(data)
     if settings.mode == "mock":
         mock_data = {**data, "text": current_input["text"], "input_type": current_input["input_type"]}
@@ -286,10 +310,16 @@ def interpret(data, settings):
         raise AssistantError("LLM 연결 주소는 HTTPS여야 합니다.", 503)
     # Validated alternating turns preserve the original request across clarifications.
     # Clients cannot supply a system-role message or override the allowed tools.
+    prompt = SYSTEM_PROMPT
+    if data.get("guided"):
+        prompt += """
+대화 모드에서는 실행 전 사용자가 수어로 확인한다. 문맥에 맞는 행동 한 가지를 제안할 수 있다.
+추가 지원 기능은 mother(엄마 전화), company(저장된 회사 길찾기)이며 arguments={}이다.
+주어가 모호하면 먼저 확인하라. 거절된 행동을 동의로 바꾸거나 반복하지 마라."""
     payload = {"model": settings.model, "temperature": 0.1, "max_tokens": 1200,
                "stream": False, "messages": [
-                   {"role": "system", "content": SYSTEM_PROMPT},
-               ] + data["history"] + [
+                   {"role": "system", "content": prompt},
+               ] + [{k: t[k] for k in ("role", "content")} for t in data["history"]] + [
                    {"role": "user", "content": json.dumps(
                        current_input, ensure_ascii=False)},
                ]}
@@ -311,6 +341,11 @@ def interpret(data, settings):
         if len(raw) > 131072:
             raise AssistantError("LLM 응답이 너무 큽니다.", 502)
         plan = decode_completion(raw)
+        restricted = {"emergency", "nearby_hospital"}
+        if not data.get("guided"):
+            restricted.update(("mother", "company"))
+        if plan["action"] and plan["action"]["name"] in restricted:
+            raise AssistantError("대화 단계와 맞지 않는 실행 제안입니다.", 502)
         user_inputs = [data["text"]] + [turn["content"] for turn in data["history"] if turn["role"] == "user"]
         if (plan["action"] is not None and plan["action"]["name"] == "adjust_volume"
                 and any("위(내장)" in text for text in user_inputs)):
@@ -318,9 +353,12 @@ def interpret(data, settings):
             plan["question"] = "장기 위 표현은 볼륨 명령으로 처리하지 않습니다. 볼륨 조절은 새 요청에서 위(방향) 또는 아래로 입력해 주세요."
         # Isolated class labels omit grammatical evidence. Confirm an initial
         # gloss interpretation even when the LLM incorrectly reports certainty.
-        if data["input_type"] == "gloss" and not data["history"] and plan["question"] is None:
+        if not data.get("guided") and data["input_type"] == "gloss" and not data["history"] and plan["question"] is None:
             plan["question"] = "이 뜻 · 맞아요?"
             plan["action"] = None
+        if data.get("guided") and (plan["action"] or plan["question"]):
+            plan["step"] = ("mother" if plan["action"] and plan["action"]["name"] == "mother"
+                            else "llm_proposal")
         return {**plan, "mode": "nvidia"}
     except error.HTTPError as exc:
         # Do not relay vendor responses: they can contain prompts or credentials.

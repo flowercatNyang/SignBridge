@@ -67,6 +67,20 @@ class ServerTest(unittest.TestCase):
             self.assertEqual(result["translation"], source)
             self.assertIsNone(result["action"])
 
+    def test_declining_emergency_over_http_proposes_clinic(self):
+        auth = {"Authorization": "Bearer local-test-token", "Content-Type": "application/json"}
+        source = "나 위(내장) 아프다"
+        payload = {"guided": True, "input_type": "gloss", "text": source}
+        status, _, offer = self.call("POST", "/v1/interpret", json.dumps(payload).encode(), auth)
+        self.assertEqual(status, 200)
+        self.assertEqual(offer["action"]["name"], "emergency")
+        payload.update(input_type="rejection", history=[
+            {"role": "user", "content": "[수어 인식 라벨] " + source},
+            {"role": "assistant", "content": offer["translation"], "step": offer["step"]}])
+        status, _, alternative = self.call("POST", "/v1/interpret", json.dumps(payload).encode(), auth)
+        self.assertEqual(status, 200)
+        self.assertEqual(alternative["action"], {"name": "nearby_hospital", "arguments": {"department": "내과"}})
+
     def test_oversized_and_non_json_requests_are_rejected(self):
         auth = {"Authorization": "Bearer local-test-token", "Content-Type": "application/json"}
         self.assertEqual(self.call("POST", "/v1/interpret", b"x" * 32769, auth)[0], 413)

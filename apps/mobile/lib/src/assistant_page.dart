@@ -180,6 +180,10 @@ class AssistantPageState extends State<AssistantPage>
     word = word.trim();
     if (word.isEmpty) return;
     if (word == '틀리다' || word == '아니다' || word == '아니오') {
+      if (_input.text.trim().isEmpty && _reply?.step != null) {
+        _interpret(rejection: true);
+        return;
+      }
       _reset();
       setState(() {
         _addConversation('요청을 취소했습니다. 수어로 다시 입력해 주세요.');
@@ -200,9 +204,7 @@ class AssistantPageState extends State<AssistantPage>
       return;
     }
     setState(() {
-      if (_reply != null &&
-          _reply!.question == null &&
-          _reply!.action == null) {
+      if (_reply != null && _reply!.question == null) {
         _history.clear();
         _originalRequestText = null;
         _reply = null;
@@ -244,9 +246,10 @@ class AssistantPageState extends State<AssistantPage>
     });
   }
 
-  Future<void> _interpret({bool confirmation = false}) async {
+  Future<void> _interpret({bool confirmation = false, bool rejection = false}) async {
+    final control = confirmation || rejection;
     final text =
-        (confirmation ? _originalRequestText ?? '' : _input.text).trim();
+        (control ? _originalRequestText ?? '' : _input.text).trim();
     if (_busy) return;
     if (confirmation && (_history.isEmpty || _reply?.question == null)) {
       setState(() => _status = '확인할 원래 요청이 없습니다. 내용을 다시 입력해 주세요.');
@@ -260,14 +263,14 @@ class AssistantPageState extends State<AssistantPage>
       setState(() => _status = '대화가 길어졌습니다. 아니다/틀리다로 새 요청을 시작해 주세요.');
       return;
     }
-    final inputType = confirmation ? 'confirmation' : _inputType;
+    final inputType = rejection ? 'rejection' : confirmation ? 'confirmation' : _inputType;
     final previousReply = _reply;
     setState(() {
       if (_history.isEmpty) _originalRequestText = text;
       _busy = true;
       _reply = null;
       _gate.reset(requireRelease: true);
-      _addConversation(confirmation ? '나: 그렇다 · 직전 질문 확인' : '나: $text');
+      _addConversation(rejection ? '나: 틀리다 · 제안 거절' : confirmation ? '나: 그렇다 · 직전 질문 확인' : '나: $text');
       _status = '요청을 해석하는 중…';
     });
     _notifyBusy(true);
@@ -286,7 +289,7 @@ class AssistantPageState extends State<AssistantPage>
             '${result.question == null ? '' : '\n${result.question}'}');
         _history.add({
           'role': 'user',
-          'content': confirmation
+          'content': rejection ? '틀리다' : confirmation
               ? '그렇다'
               : inputType == 'gloss'
                   ? '[수어 인식 라벨] $text'
@@ -294,14 +297,16 @@ class AssistantPageState extends State<AssistantPage>
         });
         _history.add({
           'role': 'assistant',
+          if (result.step != null) 'step': result.step!,
           'content': '번역 후보: ${result.translation}'
+              '${result.action == null ? '' : '\n실행 제안: ${result.action!.summary}'}'
               '${result.question == null ? '' : '\n추가 질문: ${result.question}'}'
         });
         _input.clear();
         // Keyboard answers remain text; each recognized word switches to gloss.
         _inputType = 'text';
         if (result.question != null) {
-          _status = '수어로 답하고 그렇다로 보내 주세요. 아니다/틀리다는 요청 취소입니다.';
+          _status = '수어로 답하고 그렇다로 보내 주세요. 틀리다는 현재 제안을 거절합니다.';
         } else {
           _status = result.action == null
               ? '번역 후보입니다. 실행할 기능은 없습니다.'
@@ -311,8 +316,8 @@ class AssistantPageState extends State<AssistantPage>
     } catch (error) {
       if (mounted)
         setState(() {
-          // A failed confirmation is retryable without replacing the original text.
-          if (confirmation) _reply = previousReply;
+          // Preserve the pending question or proposal so this turn can be retried.
+          _reply = previousReply;
           _status = '$error';
         });
     } finally {
@@ -337,7 +342,7 @@ class AssistantPageState extends State<AssistantPage>
                         content: SingleChildScrollView(
                             child: Text(
                                 '${reply.translation}\n\n${action.summary}\n\n'
-                                '${action.name == 'adjust_volume' ? '확인하면 미디어 볼륨을 한 단계 변경합니다.' : action.name == 'compose_message' ? '문자 앱에서 최종 전송합니다.' : action.arguments.containsKey('date') ? 'SignBridge 날짜 알림을 예약합니다.' : '시계 앱에서 실제 설정을 확인해 주세요.'}')),
+                                '${action.name == 'adjust_volume' ? '확인하면 미디어 볼륨을 한 단계 변경합니다.' : action.name == 'compose_message' ? '문자 앱에서 최종 전송합니다.' : action.name != 'set_alarm' ? '승인하면 위 기능을 실행합니다.' : action.arguments.containsKey('date') ? 'SignBridge 날짜 알림을 예약합니다.' : '시계 앱에서 실제 설정을 확인해 주세요.'}')),
                         actions: [
                           TextButton(
                               onPressed: () => Navigator.pop(context, false),
@@ -432,7 +437,7 @@ class AssistantPageState extends State<AssistantPage>
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
         const Text('내용을 수어로 입력한 뒤 그렇다로 전송합니다. '
             'LLM 질문에도 수어로 답하고 그렇다로 보냅니다. '
-            '아니다(현재 모델의 틀리다)는 요청을 취소합니다. '
+            '틀리다는 입력 중에는 취소, 제안 중에는 거절입니다. '
             '단어와 확인 동작 사이에는 손을 0.8초 이상 내려 주세요.'),
         if (!widget.embedded)
           description('수어 인식 결과를 한국어 번역 후보로 정리하고 알람·문자 작성·볼륨 조절을 도와드립니다. '
@@ -618,7 +623,7 @@ class AssistantPageState extends State<AssistantPage>
                             child: const Text('확인 후 실행')),
                     ],
                     if (_reply!.action != null || _reply!.question != null) ...[
-                      const Text('그렇다 = 전송/승인, 아니다 또는 틀리다 = 요청 폐기 후 재입력.'),
+                      const Text('그렇다 = 전송/승인 · 틀리다 = 제안 거절'),
                       if (!widget.embedded || _developerMode)
                         TextButton(
                             onPressed: _busy ? null : () => _appendGloss('그렇다'),

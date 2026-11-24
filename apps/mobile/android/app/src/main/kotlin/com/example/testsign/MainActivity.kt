@@ -47,7 +47,10 @@ class MainActivity: FlutterActivity() {
         super.onPause()
     }
 
+    private val hospitalSearch by lazy { HospitalSearch(this) }
+
     override fun onDestroy() {
+        hospitalSearch.close()
         RecognitionService.detached(this)
         super.onDestroy()
     }
@@ -314,6 +317,15 @@ class MainActivity: FlutterActivity() {
                     startActivity(intent)
                     result.success("문자 작성 화면을 열었습니다. 수신자와 내용을 확인하고 문자 앱에서 전송해 주세요.")
                 }
+                "nearby_hospital" -> {
+                    val department = JSONObject(call.argument<String>("value") ?: "{}").getString("department")
+                    require(department in listOf("내과", "병원"))
+                    if (checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                        check(pending == null) { "다른 권한 요청을 처리 중입니다." }
+                        pending = Pair(call, result)
+                        requestPermissions(arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION), 4106)
+                    } else hospitalSearch.open(department, true, result)
+                }
                 "emergency" -> {
                     startActivity(Intent(Intent.ACTION_DIAL, Uri.fromParts("tel", "119", null)))
                     result.success("119 발신 화면을 열었습니다. 전화 앱에서 통화 버튼을 눌러 주세요.")
@@ -394,6 +406,12 @@ class MainActivity: FlutterActivity() {
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 4106) {
+            val request = pending ?: return
+            pending = null
+            val department = JSONObject(request.first.argument<String>("value")!!).getString("department")
+            hospitalSearch.open(department, grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED, request.second)
+        }
         if (requestCode == 4102) HandCameraView.permissionChanged()
         if (requestCode == 4103 || requestCode == 4104) {
             val request = pending ?: return

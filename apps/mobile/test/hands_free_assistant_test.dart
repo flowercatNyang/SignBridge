@@ -46,6 +46,47 @@ Future<void> surface(WidgetTester tester) async {
 
 void main() {
 
+  testWidgets('Decline 119 and approve only the clinic search', (tester) async {
+    await surface(tester);
+    final actions = <String>[];
+    final inputs = <String>[];
+    final sources = <String>[];
+    final rejectedSteps = <String?>[];
+    await tester.pumpWidget(MaterialApp(home: TranslationPage(
+      assistantRequest: ({required String baseUrl, required String accessToken,
+          required String text, required String inputType,
+          required List<Map<String, String>> history}) async {
+        inputs.add(inputType);
+        sources.add(text);
+        if (inputType == 'rejection') {
+          rejectedSteps.add(history.last['step']);
+          return AssistantReply(translation: '내과를 찾을까요?', question: null,
+              action: AssistantAction('nearby_hospital', {'department': '내과'}),
+              mode: 'mock', step: 'hospital');
+        }
+        return AssistantReply(translation: '119 전화 화면을 열까요?', question: null,
+            action: AssistantAction('emergency', {}), mode: 'mock', step: 'emergency');
+      },
+      assistantExecuteAction: (action) async {
+        actions.add(action.name);
+        return '완료';
+      },
+    )));
+    await tester.pumpAndSettle();
+    for (final word in ['나', '위(내장)', '아프다', '그렇다', '틀리다']) {
+      await sign(tester, word);
+      await tester.pumpAndSettle();
+    }
+    expect(inputs, ['gloss', 'rejection']);
+    expect(sources, ['나 위(내장) 아프다', '나 위(내장) 아프다']);
+    expect(rejectedSteps, ['emergency']);
+    expect(actions, isEmpty);
+    await sign(tester, '그렇다');
+    await tester.pumpAndSettle();
+    await sign(tester, '그렇다', lowerHands: false);
+    expect(actions, ['nearby_hospital']);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
+
   testWidgets(
       'A new request after a completed translation gets a new original text',
       (tester) async {
