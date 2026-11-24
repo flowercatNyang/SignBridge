@@ -37,9 +37,7 @@ class AssistantPageState extends State<AssistantPage>
   @override
   bool get wantKeepAlive => widget.embedded;
   final _input = TextEditingController();
-  final _connection = AssistantConnection.instance;
-  final _server = TextEditingController();
-  final _token = TextEditingController();
+  late Future<bool> _health;
   final _history = <Map<String, String>>[];
   final _conversation = <String>[];
   final _gate = RecognitionGate();
@@ -52,18 +50,14 @@ class AssistantPageState extends State<AssistantPage>
   String _inputType = 'text', _status = '';
   bool _busy = false, _camera = false, _foreground = true;
   bool _developerMode = false;
-  bool _syncingConnection = false, _resumeCamera = false;
+  bool _resumeCamera = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance!.addObserver(this);
     _developerMode = widget.developerMode;
-    _syncConnection();
-    _connection.addListener(_syncConnection);
-    _server.addListener(_updateConnection);
-    _token.addListener(_updateConnection);
-    _loadConnection();
+    _health = checkAssistantConnection();
     _input.text = widget.initialGloss;
     if (widget.initialGloss.isNotEmpty) _inputType = 'gloss';
     if (_android && !widget.embedded) _stopBackground();
@@ -75,40 +69,6 @@ class AssistantPageState extends State<AssistantPage>
     if (oldWidget.developerMode != widget.developerMode) {
       _developerMode = widget.developerMode;
       _gate.reset(requireRelease: true);
-    }
-  }
-
-  void _syncConnection() {
-    _syncingConnection = true;
-    if (_server.text != _connection.baseUrl) {
-      _server.text = _connection.baseUrl;
-    }
-    if (_token.text != _connection.accessToken) {
-      _token.text = _connection.accessToken;
-    }
-    _syncingConnection = false;
-  }
-
-  void _updateConnection() {
-    if (!_syncingConnection) _connection.update(_server.text, _token.text);
-  }
-
-  Future<void> _loadConnection() async {
-    try {
-      await _connection.load();
-    } catch (_) {
-      if (mounted) setState(() => _status = '저장된 연결 설정을 읽지 못했습니다. 다시 설정해 주세요.');
-    }
-  }
-
-  Future<void> _saveConnection() async {
-    try {
-      await _connection.save();
-      if (mounted) setState(() => _status = '서버 연결 설정을 저장했습니다.');
-    } catch (_) {
-      if (mounted) {
-        setState(() => _status = '연결 설정을 저장하지 못했습니다. 주소와 토큰을 확인해 주세요.');
-      }
     }
   }
 
@@ -185,12 +145,7 @@ class AssistantPageState extends State<AssistantPage>
   @override
   void dispose() {
     WidgetsBinding.instance!.removeObserver(this);
-    _connection.removeListener(_syncConnection);
-    _server.removeListener(_updateConnection);
-    _token.removeListener(_updateConnection);
     _input.dispose();
-    _server.dispose();
-    _token.dispose();
     super.dispose();
   }
 
@@ -317,10 +272,9 @@ class AssistantPageState extends State<AssistantPage>
     });
     _notifyBusy(true);
     try {
-      await _connection.save();
       final result = await (widget.request ?? requestAssistant)(
-          baseUrl: _server.text,
-          accessToken: _token.text,
+          baseUrl: assistantBaseUrl,
+          accessToken: assistantAccessToken,
           text: text,
           inputType: inputType,
           history: List<Map<String, String>>.from(_history));
@@ -518,27 +472,19 @@ class AssistantPageState extends State<AssistantPage>
                                   AlarmPage(developerMode: _developerMode)));
                     },
               child: const Text('알람 · 숫자로 시간·날짜 입력')),
-        ExpansionTile(title: const Text('서버 연결 설정'), children: [
-          TextField(
-              key: const Key('assistant-server'),
-              controller: _server,
-              enabled: !_busy,
-              onEditingComplete: _saveConnection,
-              decoration: const InputDecoration(labelText: '백엔드 주소')),
-          TextField(
-              key: const Key('assistant-token'),
-              controller: _token,
-              enabled: !_busy,
-              obscureText: true,
-              onEditingComplete: _saveConnection,
-              decoration:
-                  const InputDecoration(labelText: '서버 연결 토큰 (설정한 경우)')),
-          const Text('NVIDIA API 키는 앱이 아니라 백엔드에 입력합니다.'),
-          TextButton(
-              key: const Key('assistant-save-connection'),
-              onPressed: _busy ? null : _saveConnection,
-              child: const Text('연결 설정 저장')),
-        ]),
+        FutureBuilder<bool>(
+            future: _health,
+            builder: (context, snapshot) {
+              final checking = snapshot.connectionState != ConnectionState.done;
+              return ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('LLM 서버 연결'),
+                  subtitle: Text(checking ? '확인 중…' : snapshot.data == true ? '연결됨' : '연결 안 됨'),
+                  trailing: IconButton(
+                      tooltip: '연결 다시 확인',
+                      icon: const Icon(Icons.refresh),
+                      onPressed: checking ? null : () => setState(() => _health = checkAssistantConnection())));
+            }),
         gap,
         if (!widget.embedded)
           SwitchListTile(

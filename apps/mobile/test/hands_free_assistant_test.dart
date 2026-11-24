@@ -45,8 +45,6 @@ Future<void> surface(WidgetTester tester) async {
 }
 
 void main() {
-  setUp(() => AssistantConnection.instance.resetForTesting());
-  tearDown(() => AssistantConnection.instance.resetForTesting());
 
   testWidgets(
       'A new request after a completed translation gets a new original text',
@@ -442,8 +440,6 @@ void main() {
       'Connection survives a page recreation and is used by sign requests',
       (tester) async {
     await surface(tester);
-    AssistantConnection.instance
-        .update('http://192.168.0.12:8000', 'test-access-token');
     final connections = <String>[];
     Future<AssistantReply> request(
         {required String baseUrl,
@@ -471,6 +467,6 @@ void main() {
     await sign(tester, '그렇다');
     await tester.pumpAndSettle();
     expect(connections,
-        List.filled(2, 'http://192.168.0.12:8000|test-access-token'));
+        List.filled(2, '$assistantBaseUrl|$assistantAccessToken'));
   }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 }

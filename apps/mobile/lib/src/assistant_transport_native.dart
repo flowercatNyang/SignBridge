@@ -24,3 +24,23 @@ Future<Map<String, dynamic>> postAssistantJson(
     client.close(force: true);
   }
 }
+
+Future<Map<String, dynamic>> getAssistantHealth(Uri uri) async {
+  final client = HttpClient()..connectionTimeout = const Duration(seconds: 5);
+  Future<Map<String, dynamic>> fetch() async {
+    final request = await client.getUrl(uri);
+    request.followRedirects = false;
+    final response = await request.close();
+    final bytes = <int>[];
+    await for (final chunk in response) {
+      if (bytes.length + chunk.length > 65536) throw const FormatException();
+      bytes.addAll(chunk);
+    }
+    return {'status': response.statusCode, 'body': utf8.decode(bytes)};
+  }
+  try {
+    return await fetch().timeout(const Duration(seconds: 5));
+  } finally {
+    client.close(force: true);
+  }
+}
