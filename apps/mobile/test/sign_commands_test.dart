@@ -2,6 +2,20 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:testsign/src/sign_commands.dart';
 
 void main() {
+  test('First qualifying prediction is accepted once per hand release', () {
+    final gate = RecognitionGate();
+    const word = SignPrediction('그렇다', .85);
+    const absent = SignPrediction('', 0, handsAbsent: true);
+    final start = DateTime(2026);
+    expect(gate.accept(const SignPrediction('그렇다', .849)), isNull);
+    expect(gate.accept(word), '그렇다');
+    expect(gate.accept(word), isNull);
+    gate.accept(absent, timestamp: start);
+    gate.accept(absent, timestamp: start.add(const Duration(milliseconds: 799)));
+    expect(gate.armed, isFalse);
+    gate.accept(absent, timestamp: start.add(const Duration(milliseconds: 800)));
+    expect(gate.accept(word), '그렇다');
+  });
   test('Only requested translated words trigger actions', () {
     expect(shortcutCommands, {
       '아프다': 'emergency',

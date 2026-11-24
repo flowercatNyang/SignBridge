@@ -30,9 +30,7 @@ void main() {
     final cameraState = tester.state(find.byType(HandCamera));
     final predict =
         tester.widget<HandCamera>(find.byType(HandCamera)).onPrediction!;
-    for (var i = 0; i < 3; i++) {
-      predict(const SignPrediction('엄마', .99));
-    }
+    predict(const SignPrediction('엄마', .99));
     await tester.pumpAndSettle();
     expect(requests, isEmpty);
     final assistant =
@@ -42,9 +40,7 @@ void main() {
         timestamp: now);
     assistant.acceptPrediction(const SignPrediction('', 0, handsAbsent: true),
         timestamp: now.add(const Duration(milliseconds: 900)));
-    for (var i = 0; i < 3; i++) {
-      predict(const SignPrediction('그렇다', .99));
-    }
+    predict(const SignPrediction('그렇다', .99));
     await tester.pumpAndSettle();
     expect(requests, ['엄마']);
     expect(tester.widget<AssistantPage>(find.byType(AssistantPage)).embedded,

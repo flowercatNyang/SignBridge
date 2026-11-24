@@ -74,22 +74,17 @@ class CommandGate {
 /// between tokens so a held sign cannot fill several digits or approve a plan.
 class RecognitionGate {
   bool _latched = false;
-  String _candidate = '';
-  int _count = 0;
   DateTime? _absentSince;
   bool get armed => !_latched;
 
   void reset({bool requireRelease = false}) {
     _latched = requireRelease;
-    _candidate = '';
-    _count = 0;
     _absentSince = null;
   }
 
   String? accept(SignPrediction prediction, {DateTime? timestamp}) {
     final now = timestamp ?? DateTime.now();
     if (prediction.handsAbsent) {
-      _candidate = ''; _count = 0;
       _absentSince ??= now;
       if (now.difference(_absentSince!) >= const Duration(milliseconds: 800)) reset();
       return null;
@@ -98,12 +93,9 @@ class RecognitionGate {
     if (_latched) return null;
     if (!prediction.confidence.isFinite || prediction.confidence < .85 ||
         prediction.confidence > 1 || prediction.text.trim().isEmpty) {
-      _candidate = ''; _count = 0;
       return null;
     }
-    if (_candidate != prediction.text) { _candidate = prediction.text; _count = 0; }
-    if (++_count < 3) return null;
     _latched = true;
-    return _candidate;
+    return prediction.text;
   }
 }

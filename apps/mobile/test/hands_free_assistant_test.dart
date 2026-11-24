@@ -33,9 +33,7 @@ Future<void> sign(WidgetTester tester, String word,
   if (lowerHands) release(tester);
   final predict =
       tester.widget<HandCamera>(find.byType(HandCamera)).onPrediction!;
-  for (var i = 0; i < 3; i++) {
-    predict(SignPrediction(word, .99));
-  }
+  predict(SignPrediction(word, .99));
   await tester.pump();
 }
 
