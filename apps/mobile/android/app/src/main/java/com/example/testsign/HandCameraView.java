@@ -119,16 +119,13 @@ public final class HandCameraView implements PlatformView, Application.ActivityL
         status.setText("카메라와 손 인식 모델을 준비합니다.");
         status.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
         root.addView(status);
-        LinearLayout buttons = new LinearLayout(activity);
-        Button retry = new Button(activity);
-        retry.setText("카메라 시작 / 재시도");
-        retry.setOnClickListener(v -> start());
-        buttons.addView(retry, new LinearLayout.LayoutParams(0, -2, 1));
         Button flip = new Button(activity);
         flip.setText("카메라 전환");
-        flip.setOnClickListener(v -> { pipeline.flip(); });
-        buttons.addView(flip, new LinearLayout.LayoutParams(0, -2, 1));
-        root.addView(buttons);
+        flip.setOnClickListener(v -> {
+            if (activity.checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) pipeline.flip();
+            else start();
+        });
+        root.addView(flip);
         activity.getApplication().registerActivityLifecycleCallbacks(this);
         pipeline.attach(listener);
         new Handler(Looper.getMainLooper()).post(this::start);

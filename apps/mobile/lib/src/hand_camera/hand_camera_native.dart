@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../sign_commands.dart';
@@ -23,6 +24,9 @@ class _HandCameraState extends State<HandCamera> {
     if (defaultTargetPlatform == TargetPlatform.android) {
       return AndroidView(
           viewType: 'signbridge/hand-camera',
+          gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
+            Factory<TapGestureRecognizer>(() => TapGestureRecognizer()),
+          },
           onPlatformViewCreated: (id) {
             _channel = MethodChannel('signbridge/predictions/$id');
             _channel!.setMethodCallHandler((call) async {
