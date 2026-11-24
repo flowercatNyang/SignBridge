@@ -334,7 +334,7 @@ class _TranslationPageState extends State<TranslationPage>
               backgroundColor: Colors.black,
               body: SizedBox.expand(
                   child:
-                      HandCamera(key: _cameraKey, onPrediction: _prediction))),
+                      HandCamera(key: _cameraKey, onPrediction: _prediction, compact: true))),
       ]);
 
   Widget _fullView(BuildContext context) => Scaffold(

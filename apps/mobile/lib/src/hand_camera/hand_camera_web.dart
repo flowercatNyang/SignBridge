@@ -7,7 +7,9 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 class HandCamera extends StatefulWidget {
-  const HandCamera({Key? key, this.onPrediction}) : super(key: key);
+  const HandCamera({Key? key, this.onPrediction, this.compact = false})
+      : super(key: key);
+  final bool compact;
   final ValueChanged<SignPrediction>? onPrediction;
   @override
   State<HandCamera> createState() => _HandCameraState();

@@ -126,10 +126,19 @@ Future<AssistantReply> requestAssistant({required String baseUrl,
     throw const FormatException('서버 주소는 http(s)://주소:포트 형식이어야 합니다.');
   }
   try {
-    final response = await postAssistantJson(uri.resolve('/v1/interpret'),
-        accessToken.trim(), {'guided': true, 'text': text, 'input_type': inputType, 'history': history})
-        .timeout(const Duration(seconds: 60));
-    final decoded = jsonDecode(response['body'] as String);
+    final payload = {'text': text, 'input_type': inputType, 'history': history};
+    Future<Map<String, dynamic>> send(Map<String, dynamic> body) =>
+        postAssistantJson(uri.resolve('/v1/interpret'), accessToken.trim(), body)
+            .timeout(const Duration(seconds: 60));
+    var response = await send({'guided': true, ...payload});
+    var decoded = jsonDecode(response['body'] as String);
+    // Older servers reject the guided field before interpreting the request.
+    if (response['status'] == 400 && decoded is Map &&
+        decoded['error'] == '잘못된 요청 형식입니다.' &&
+        inputType != 'rejection' && history.every((turn) => !turn.containsKey('step'))) {
+      response = await send(payload);
+      decoded = jsonDecode(response['body'] as String);
+    }
     if (decoded is! Map<String, dynamic>) {
       throw const FormatException('서버 응답을 읽지 못했습니다.');
     }

@@ -77,6 +77,7 @@ public final class HandCameraView implements PlatformView, Application.ActivityL
             String metrics = lastDisplay + String.format(java.util.Locale.US, "  |  %.1f FPS", fps);
             if (!translation.getText().toString().equals(metrics)) translation.setText(metrics);
             String tracking = absent ? "손을 화면 안에 보여 주세요." : "손 " + hands.landmarks().size() + "개 추적 중";
+            tracking = (mirror ? "전면" : "후면") + " 카메라 · " + tracking;
             if (!status.getText().toString().equals(tracking)) status.setText(tracking);
             if (display != null || absent) {
                 Map<String,Object> message = new HashMap<>();
@@ -119,13 +120,17 @@ public final class HandCameraView implements PlatformView, Application.ActivityL
         status.setText("카메라와 손 인식 모델을 준비합니다.");
         status.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
         root.addView(status);
-        Button flip = new Button(activity);
-        flip.setText("카메라 전환");
-        flip.setOnClickListener(v -> {
-            if (activity.checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) pipeline.flip();
-            else start();
+        predictions.setMethodCallHandler((call, result) -> {
+            if (!"flipCamera".equals(call.method)) {
+                result.notImplemented();
+                return;
+            }
+            if (!disposed && !paused) {
+                pipeline.flip();
+                if (activity.checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) start();
+            }
+            result.success(null);
         });
-        root.addView(flip);
         activity.getApplication().registerActivityLifecycleCallbacks(this);
         pipeline.attach(listener);
         new Handler(Looper.getMainLooper()).post(this::start);
@@ -153,6 +158,7 @@ public final class HandCameraView implements PlatformView, Application.ActivityL
     @Override public void dispose() {
         if (disposed) return;
         disposed = true;
+        predictions.setMethodCallHandler(null);
         suspend();
         activity.getApplication().unregisterActivityLifecycleCallbacks(this);
         if (active.get() == this) active.clear();

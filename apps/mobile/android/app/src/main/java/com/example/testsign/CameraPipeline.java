@@ -59,12 +59,6 @@ final class CameraPipeline {
     boolean ready() { return camera != null; }
     boolean running() { return camera != null || starting; }
     void flip() {
-        if (starting) return;
-        if (camera == null) {
-            front = !front;
-            start();
-            return;
-        }
         try {
             if (findCamera(!front) < 0) {
                 android.widget.Toast.makeText(activity, "전환할 카메라가 없습니다.", android.widget.Toast.LENGTH_SHORT).show();
@@ -72,11 +66,17 @@ final class CameraPipeline {
             }
         } catch (RuntimeException e) {
             android.util.Log.w("HandCamera", "Cannot enumerate cameras", e);
+            android.widget.Toast.makeText(activity, "카메라 목록을 확인할 수 없습니다.", android.widget.Toast.LENGTH_SHORT).show();
+            return;
+        }
+        front = !front;
+        if (starting) return; // openCamera reads the latest requested direction.
+        if (camera == null) {
+            start();
             return;
         }
         starting = true;
         int token = ++generation;
-        front = !front;
         releaseCamera();
         status("카메라 전환 중…");
         worker.execute(() -> {
