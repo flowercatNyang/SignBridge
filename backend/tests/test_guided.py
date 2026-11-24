@@ -61,17 +61,25 @@ class GuidedConversationTest(unittest.TestCase):
             self.turn("틀리다", "rejection")
 
     def test_wake_alarm_in_every_word_order(self):
-        for words, days in [(("일어나다", "8"), []),
-                            (("매일매일", "일어나다", "8"), list(range(1, 8)))]:
-            for order in permutations(words):
-                with self.subTest(order=order):
-                    reply = self.start(" ".join(order))
-                    self.assertEqual(reply["action"], {"name": "set_alarm", "arguments": {
-                        "hour": 8, "minute": 0, "label": "기상", "days": days}})
-                    self.assertEqual(reply["step"], "done_on_decline")
-                    self.assertIsNone(self.answer(False)["action"])
+        daily = list(range(1, 8))
+        for words, minute, days in [(("일어나다", "8"), 0, []),
+                                    (("매일매일", "일어나다", "8"), 0, daily),
+                                    (("일어나다", "8", "8"), 8, []),
+                                    (("매일매일", "일어나다", "8", "8"), 8, daily)]:
+            for order in set(permutations(words)):
+                for morning, hour in [(True, 8), (False, 20)]:
+                    with self.subTest(order=order, morning=morning):
+                        prompt = self.start(" ".join(order))
+                        self.assertEqual(prompt["step"], "wake_period")
+                        self.assertIn("오후이면 틀리다", prompt["question"])
+                        self.assertIsNone(prompt["action"])
+                        reply = self.answer(morning)
+                        self.assertEqual(reply["action"], {"name": "set_alarm", "arguments": {
+                            "hour": hour, "minute": minute, "label": "기상", "days": days}})
+                        self.assertEqual(reply["step"], "done_on_decline")
+                        self.assertIsNone(self.answer(False)["action"])
 
     def test_wake_alarm_requires_complete_unambiguous_labels(self):
-        for text in ("매일매일 8", "일어나다", "일어나다 8 8", "엄마 일어나다 8"):
+        for text in ("매일매일 8", "일어나다", "일어나다 8 8 8", "엄마 일어나다 8"):
             with self.subTest(text=text):
                 self.assertIsNone(self.start(text)["action"])

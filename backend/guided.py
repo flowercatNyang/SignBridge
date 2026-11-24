@@ -1,7 +1,7 @@
 """Finite proposals for the small deployed sign vocabulary. Other input uses the LLM."""
 
 STEPS = {"subject", "notify", "body", "emergency", "hospital", "mother", "message",
-         "message_body", "done_on_decline", "llm_proposal"}
+         "message_body", "wake_period", "done_on_decline", "llm_proposal"}
 
 def question(step, meaning, prompt):
     return dict(step=step, translation=meaning, question=prompt, action=None)
@@ -20,6 +20,22 @@ def ask_body():
 def emergency():
     return proposal("emergency", "119 전화 화면을 열까요?", "emergency")
 
+def wake_alarm(text, period=None):
+    tokens = text.split()
+    daily = "매일매일" in tokens
+    eights = tokens.count("8")
+    if eights not in (1, 2) or "일어나다" not in tokens or len(tokens) != eights + 1 + int(daily):
+        return None
+    minute = 8 if eights == 2 else 0
+    time = "8시 8분" if minute else "8시"
+    repeat = "매일 " if daily else ""
+    if period is None:
+        return question("wake_period", f"{repeat}{time} 기상 알람",
+                        "오전인가요? 오전이면 그렇다, 오후이면 틀리다로 답해 주세요.")
+    return proposal("done_on_decline", f"{repeat}{period} {time}에 기상 알람을 설정할까요?",
+                    "set_alarm", hour=8 if period == "오전" else 20, minute=minute,
+                    label="기상", days=list(range(1, 8)) if daily else [])
+
 def department(words):
     if any(w in words for w in ("위(내장)", "배", "속", "복부")):
         return "내과"
@@ -33,6 +49,8 @@ def guided_plan(data):
     confirmed = kind == "confirmation"
     if step == "llm_proposal":
         return None
+    if step == "wake_period" and (confirmed or rejected):
+        return wake_alarm(text, "오전" if confirmed else "오후")
     if rejected:
         if step == "subject":
             return question("notify", "아픈 사람을 다시 확인할게요.", "내가 아프다는 걸 엄마에게 알리고 싶으세요?")
@@ -68,15 +86,10 @@ def guided_plan(data):
         up = text != "아래"
         return proposal("done_on_decline", "미디어 볼륨을 한 단계 " + ("올릴까요?" if up else "내릴까요?"),
                         "adjust_volume", direction="up" if up else "down")
-    tokens = text.split()
-    alarm_words = sorted(tokens)
-    if alarm_words in (["8", "일어나다"], ["8", "매일매일", "일어나다"]):
-        daily = "매일매일" in tokens
-        schedule = "매일 오전 8시" if daily else "오전 8시에 한 번"
-        return proposal("done_on_decline", f"{schedule} 기상 알람을 설정할까요?",
-                        "set_alarm", hour=8, minute=0, label="기상",
-                        days=list(range(1, 8)) if daily else [])
-    words = set(tokens)
+    alarm = wake_alarm(text)
+    if alarm is not None:
+        return alarm
+    words = set(text.split())
     if "아프다" in words and words <= {"아프다", "엄마", "나", "위(내장)", "배", "속", "복부"}:
         if "엄마" in words:
             if "나" in words:
